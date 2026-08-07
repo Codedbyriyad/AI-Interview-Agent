@@ -1,13 +1,24 @@
+import Container from "../common/Container";
+import Button from "../ui/Button";
+
 function CTA() {
   return (
     <section className="bg-blue-600 py-24 text-center text-white">
-      <h2 className="mb-6 text-4xl font-bold">
-        Ready to Ace Your Next Interview?
-      </h2>
+      <Container>
+        <h2 className="text-4xl font-black">
+          Ready to Ace Your Next Interview?
+        </h2>
 
-      <button className="rounded-xl bg-white px-8 py-4 font-semibold text-blue-600">
-        Practice Now
-      </button>
+        <p className="mx-auto mt-6 max-w-2xl text-blue-100">
+          Practice smarter with AI and build confidence before the real interview.
+        </p>
+
+        <Button
+          className="mt-10 bg-white text-blue-600 hover:bg-gray-100"
+        >
+          Start Practicing
+        </Button>
+      </Container>
     </section>
   );
 }
