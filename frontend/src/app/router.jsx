@@ -3,39 +3,33 @@ import {
 } from "react-router-dom";
 
 import MainLayout from "../layouts/MainLayout";
-import InterviewLayout from "../layouts/InterviewLayout";
-
 import Home from "../pages/Home";
 import Interview from "../pages/Interview";
 import Feedback from "../pages/Feedback";
 import NotFound from "../pages/NotFound";
 
-import { ROUTES } from "../constants/routes";
-
 const router = createBrowserRouter([
   {
+    path: "/",
     element: <MainLayout />,
-    errorElement: <NotFound />,
     children: [
       {
-        path: ROUTES.HOME,
+        index: true,
         element: <Home />,
       },
-    ],
-  },
-
-  {
-    element: <InterviewLayout />,
-    children: [
       {
-        path: ROUTES.INTERVIEW,
+        path: "interview",
         element: <Interview />,
       },
       {
-        path: ROUTES.FEEDBACK,
+        path: "feedback",
         element: <Feedback />,
       },
     ],
+  },
+  {
+    path: "*",
+    element: <NotFound />,
   },
 ]);
 
