@@ -1,76 +1,131 @@
 import { motion } from "framer-motion";
 import {
-  Mic,
-  Brain,
-  BadgeCheck,
   ArrowRight,
+  Brain,
+  Mic,
+  Sparkles,
 } from "lucide-react";
 
 import Container from "../common/Container";
+import Button from "../ui/Button";
+import Card from "../ui/Card";
+import { APP } from "../../constants/theme";
 
 function Hero() {
   return (
-    <section className="relative overflow-hidden bg-gradient-to-b from-blue-50 via-white to-white py-24 lg:py-36">
+    <section className="relative overflow-hidden bg-gradient-to-b from-slate-50 via-white to-blue-50 py-24 lg:py-32">
+
+      {/* Background Blur */}
+      <div className="absolute left-0 top-0 h-72 w-72 rounded-full bg-blue-300/20 blur-3xl"></div>
+      <div className="absolute right-0 bottom-0 h-96 w-96 rounded-full bg-cyan-300/20 blur-3xl"></div>
+
       <Container>
-        <motion.div
-          initial={{ opacity: 0, y: 40 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.7 }}
-          className="mx-auto max-w-4xl text-center"
-        >
-          <span className="inline-flex items-center rounded-full bg-blue-100 px-4 py-2 text-sm font-semibold text-blue-700">
-            🚀 Built for ABTalks AI Hackathon 2026
-          </span>
 
-          <h1 className="mt-8 text-5xl font-extrabold leading-tight text-gray-900 lg:text-7xl">
-            Master Every
-            <span className="text-blue-600"> Interview </span>
-            with AI
-          </h1>
+        <div className="grid items-center gap-16 lg:grid-cols-2">
 
-          <p className="mx-auto mt-8 max-w-2xl text-lg leading-8 text-gray-600">
-            Practice realistic interviews, receive instant AI feedback,
-            improve communication skills, and boost your confidence.
-          </p>
+          {/* LEFT */}
 
-          <div className="mt-10 flex flex-col justify-center gap-4 sm:flex-row">
-            <button className="flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-8 py-4 font-semibold text-white transition hover:bg-blue-700">
-              Start Interview
-              <ArrowRight size={20} />
-            </button>
+          <motion.div
+            initial={{ opacity:0, x:-40 }}
+            animate={{ opacity:1, x:0 }}
+            transition={{ duration:0.7 }}
+          >
 
-            <button className="rounded-xl border border-gray-300 px-8 py-4 font-semibold transition hover:bg-gray-100">
-              Watch Demo
-            </button>
-          </div>
-
-          <div className="mt-16 grid gap-6 md:grid-cols-3">
-            <div className="rounded-2xl border bg-white p-6 shadow-sm">
-              <Mic className="mx-auto mb-4 text-blue-600" size={34} />
-              <h3 className="font-bold">Voice Interview</h3>
-              <p className="mt-2 text-sm text-gray-500">
-                Talk naturally using AI voice conversation.
-              </p>
+            <div className="mb-6 inline-flex items-center gap-2 rounded-full bg-blue-100 px-4 py-2 text-sm font-semibold text-blue-700">
+              <Sparkles size={16}/>
+              Built for ABTalks AI Hackathon
             </div>
 
-            <div className="rounded-2xl border bg-white p-6 shadow-sm">
-              <Brain className="mx-auto mb-4 text-blue-600" size={34} />
-              <h3 className="font-bold">AI Feedback</h3>
-              <p className="mt-2 text-sm text-gray-500">
-                Receive detailed interview analysis instantly.
-              </p>
+            <h1 className="text-5xl font-black leading-tight lg:text-7xl">
+              {APP.slogan}
+            </h1>
+
+            <p className="mt-8 max-w-xl text-lg leading-8 text-gray-600">
+              Practice realistic AI interviews,
+              receive personalized feedback,
+              improve confidence,
+              and get ready for your dream job.
+            </p>
+
+            <div className="mt-10 flex flex-wrap gap-4">
+
+              <Button>
+                Start Interview
+              </Button>
+
+              <Button variant="secondary">
+                Learn More
+              </Button>
+
             </div>
 
-            <div className="rounded-2xl border bg-white p-6 shadow-sm">
-              <BadgeCheck className="mx-auto mb-4 text-blue-600" size={34} />
-              <h3 className="font-bold">Track Progress</h3>
-              <p className="mt-2 text-sm text-gray-500">
-                Improve over time with personalized insights.
-              </p>
-            </div>
-          </div>
-        </motion.div>
+          </motion.div>
+
+          {/* RIGHT */}
+
+          <motion.div
+            initial={{ opacity:0, x:40 }}
+            animate={{ opacity:1, x:0 }}
+            transition={{ duration:0.8 }}
+          >
+
+            <Card>
+
+              <div className="space-y-6">
+
+                <div className="flex items-center gap-4">
+
+                  <div className="rounded-xl bg-blue-100 p-3">
+                    <Mic className="text-blue-600"/>
+                  </div>
+
+                  <div>
+                    <h3 className="font-bold">
+                      AI Interview Started
+                    </h3>
+
+                    <p className="text-sm text-gray-500">
+                      Tell me about yourself...
+                    </p>
+                  </div>
+
+                </div>
+
+                <div className="h-2 rounded bg-gray-200">
+
+                  <div className="h-full w-3/4 rounded bg-blue-600"></div>
+
+                </div>
+
+                <div className="grid gap-4">
+
+                  <div className="rounded-xl bg-slate-100 p-4">
+                    Confidence Score
+                    <div className="mt-2 text-3xl font-bold">
+                      92%
+                    </div>
+                  </div>
+
+                  <div className="rounded-xl bg-slate-100 p-4">
+                    AI Feedback
+                    <div className="mt-2 text-gray-600">
+                      Great eye contact, strong communication,
+                      improve technical depth.
+                    </div>
+                  </div>
+
+                </div>
+
+              </div>
+
+            </Card>
+
+          </motion.div>
+
+        </div>
+
       </Container>
+
     </section>
   );
 }
