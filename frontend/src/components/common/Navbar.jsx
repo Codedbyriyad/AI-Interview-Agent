@@ -8,11 +8,7 @@ function Navbar() {
     <header className="sticky top-0 z-50 border-b border-white/20 bg-white/80 backdrop-blur-lg">
       <Container>
         <nav className="flex h-20 items-center justify-between">
-
-          <Link
-            to="/"
-            className="text-2xl font-black text-blue-600"
-          >
+          <Link to="/" className="text-2xl font-black text-blue-600">
             AI Interview Agent
           </Link>
 
@@ -30,10 +26,9 @@ function Navbar() {
             </a>
           </div>
 
-          <Button>
-            Get Started
-          </Button>
-
+          <Link to="/interview">
+            <Button>Get Started</Button>
+          </Link>
         </nav>
       </Container>
     </header>
