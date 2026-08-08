@@ -1,6 +1,5 @@
 import json
 
-from fastapi import APIRouter, HTTPException, Depends
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
@@ -180,12 +179,13 @@ def final_feedback(
     "/interviews",
     response_model=InterviewResponse,
 )
-@router.post("/interviews", response_model=InterviewResponse)
 def create_interview(
     interview: InterviewCreate,
     db: Session = Depends(get_db),
 ):
+
     db_interview = Interview(
+
         role=interview.role,
         experience_level=interview.experience_level,
         interview_type=interview.interview_type,
@@ -208,30 +208,19 @@ def create_interview(
     db.refresh(db_interview)
 
     # Convert JSON strings back to Python lists
-    db_interview.strengths = json.loads(db_interview.strengths)
-    db_interview.improvements = json.loads(db_interview.improvements)
+    db_interview.strengths = json.loads(
+        db_interview.strengths
+    )
+
+    db_interview.improvements = json.loads(
+        db_interview.improvements
+    )
 
     return db_interview
 
-@router.get("/interviews", response_model=list[InterviewResponse])
-def get_interviews(
-    db: Session = Depends(get_db),
-):
-    interviews = (
-        db.query(Interview)
-        .order_by(Interview.created_at.desc())
-        .all()
-    )
-
-    for interview in interviews:
-        interview.strengths = json.loads(interview.strengths)
-        interview.improvements = json.loads(interview.improvements)
-
-    return interviews
-
 
 # =========================================================
-# GET INTERVIEW HISTORY
+# GET ALL INTERVIEW HISTORY
 # =========================================================
 
 @router.get(
@@ -248,4 +237,83 @@ def get_interviews(
         .all()
     )
 
+    for interview in interviews:
+
+        interview.strengths = json.loads(
+            interview.strengths
+        )
+
+        interview.improvements = json.loads(
+            interview.improvements
+        )
+
     return interviews
+
+
+# =========================================================
+# GET SINGLE INTERVIEW
+# =========================================================
+
+@router.get(
+    "/interviews/{interview_id}",
+    response_model=InterviewResponse,
+)
+def get_interview(
+    interview_id: int,
+    db: Session = Depends(get_db),
+):
+
+    interview = (
+        db.query(Interview)
+        .filter(Interview.id == interview_id)
+        .first()
+    )
+
+    if not interview:
+
+        raise HTTPException(
+            status_code=404,
+            detail="Interview not found.",
+        )
+
+    interview.strengths = json.loads(
+        interview.strengths
+    )
+
+    interview.improvements = json.loads(
+        interview.improvements
+    )
+
+    return interview
+
+
+# =========================================================
+# DELETE INTERVIEW
+# =========================================================
+
+@router.delete("/interviews/{interview_id}")
+def delete_interview(
+    interview_id: int,
+    db: Session = Depends(get_db),
+):
+
+    interview = (
+        db.query(Interview)
+        .filter(Interview.id == interview_id)
+        .first()
+    )
+
+    if not interview:
+
+        raise HTTPException(
+            status_code=404,
+            detail="Interview not found.",
+        )
+
+    db.delete(interview)
+    db.commit()
+
+    return {
+        "success": True,
+        "message": "Interview deleted successfully.",
+    }

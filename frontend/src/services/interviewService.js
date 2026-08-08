@@ -59,3 +59,16 @@ export const getInterviews = async () => {
 
   return response.data;
 };
+
+export const getInterviewById = async (id) => {
+  const response = await api.get(`/interviews/${id}`);
+
+  return response.data;
+};
+
+
+export const deleteInterview = async (id) => {
+  const response = await api.delete(`/interviews/${id}`);
+
+  return response.data;
+};

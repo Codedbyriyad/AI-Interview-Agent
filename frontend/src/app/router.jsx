@@ -7,6 +7,8 @@ import Interview from "../pages/Interview";
 import Feedback from "../pages/Feedback";
 import History from "../pages/History";
 import NotFound from "../pages/NotFound";
+import HistoryDetails from "../pages/HistoryDetails";
+import Dashboard from "../pages/Dashboard";
 
 const router = createBrowserRouter([
   {
@@ -16,6 +18,14 @@ const router = createBrowserRouter([
       {
         index: true,
         element: <Home />,
+      },
+      {
+        index: true,
+        element: <Home />,
+      },
+      {
+        path: "dashboard",
+        element: <Dashboard />,
       },
       {
         path: "interview",
@@ -28,6 +38,14 @@ const router = createBrowserRouter([
       {
         path: "history",
         element: <History />,
+      },
+      {
+        path: "history",
+        element: <History />,
+      },
+      {
+        path: "history/:id",
+        element: <HistoryDetails />,
       },
     ],
   },
