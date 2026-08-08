@@ -5,6 +5,7 @@ import MainLayout from "../layouts/MainLayout";
 import Home from "../pages/Home";
 import Interview from "../pages/Interview";
 import Feedback from "../pages/Feedback";
+import History from "../pages/History";
 import NotFound from "../pages/NotFound";
 
 const router = createBrowserRouter([
@@ -23,6 +24,10 @@ const router = createBrowserRouter([
       {
         path: "feedback",
         element: <Feedback />,
+      },
+      {
+        path: "history",
+        element: <History />,
       },
     ],
   },

@@ -1,9 +1,9 @@
 import { useState } from "react";
-
 import {
   generateInterviewQuestion,
   evaluateInterviewAnswer,
   generateFinalInterviewFeedback,
+  saveInterview,
 } from "../services/interviewService";
 
 const roles = [
@@ -165,7 +165,7 @@ function Interview() {
       } else {
 
         // ----------------------------------------
-        // 4. Generate FINAL interview report
+        // 4. Generate FINAL interview report & Save to DB
         // ----------------------------------------
 
         const finalResult = await generateFinalInterviewFeedback({
@@ -179,7 +179,28 @@ function Interview() {
           evaluations: updatedEvaluations,
         });
 
-        setEvaluation(finalResult.feedback);
+        const finalFeedback = finalResult.feedback;
+
+        // Save complete interview to database
+        await saveInterview({
+          role: selectedRole,
+          experience_level: selectedExperience,
+          interview_type: selectedInterviewType,
+
+          overall_score: finalFeedback.overall_score,
+          technical_accuracy: finalFeedback.technical_accuracy,
+          communication: finalFeedback.communication,
+          relevance: finalFeedback.relevance,
+          problem_solving: finalFeedback.problem_solving,
+
+          strengths: finalFeedback.strengths,
+          improvements: finalFeedback.improvements,
+
+          recommendation: finalFeedback.recommendation,
+          final_summary: finalFeedback.final_summary,
+        });
+
+        setEvaluation(finalFeedback);
 
         setStep(5);
       }
