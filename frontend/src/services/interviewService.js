@@ -40,3 +40,22 @@ export const evaluateInterviewAnswer = async ({
 
   return response.data;
 };
+
+export const generateFinalInterviewFeedback = async ({
+  role,
+  experienceLevel,
+  interviewType,
+  evaluations,
+}) => {
+  const response = await axios.post(
+    `${API_BASE_URL}/api/interview/final-feedback`,
+    {
+      role,
+      experience_level: experienceLevel,
+      interview_type: interviewType,
+      evaluations,
+    }
+  );
+
+  return response.data;
+};

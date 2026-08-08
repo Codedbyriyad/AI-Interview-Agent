@@ -5,6 +5,7 @@ from app.services.openai_service import (
     test_openai,
     generate_interview_question,
     evaluate_interview_answer,
+    generate_final_interview_feedback,
 )
 
 
@@ -95,6 +96,38 @@ def evaluate_answer(
         return {
             "success": True,
             "evaluation": evaluation,
+        }
+
+    except Exception as e:
+
+        raise HTTPException(
+            status_code=500,
+            detail=str(e)
+        )
+
+class FinalInterviewRequest(BaseModel):
+    role: str
+    experience_level: str
+    interview_type: str
+    evaluations: list
+
+
+@router.post("/api/interview/final-feedback")
+def final_feedback(
+    request: FinalInterviewRequest
+):
+    try:
+
+        feedback = generate_final_interview_feedback(
+            role=request.role,
+            experience_level=request.experience_level,
+            interview_type=request.interview_type,
+            evaluations=request.evaluations,
+        )
+
+        return {
+            "success": True,
+            "feedback": feedback,
         }
 
     except Exception as e:
