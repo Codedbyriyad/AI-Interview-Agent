@@ -40,19 +40,99 @@ export default function InterviewSession() {
   const [sessionTimer, setSessionTimer] = useState(120);
   const [isRecording, setIsRecording] = useState(false);
   const [recordingSeconds, setRecordingSeconds] = useState(0);
+
+  // Voice recognition states
+  const [isSpeechSupported, setIsSpeechSupported] = useState(true);
+  const [interimTranscript, setInterimTranscript] = useState('');
+  const [voiceError, setVoiceError] = useState('');
+
   const [showFinishModal, setShowFinishModal] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isAdvancing, setIsAdvancing] = useState(false);
   const [error, setError] = useState('');
 
   // Redirect back to setup if the session config/first question is missing
-  // (e.g. the page was opened directly instead of via the setup flow).
   useEffect(() => {
     if (!location.state?.config || !location.state?.firstQuestion) {
       navigate('/interview', { replace: true });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Web Speech API Initialization Effect
+  useEffect(() => {
+    const SpeechRecognition =
+      window.SpeechRecognition || window.webkitSpeechRecognition;
+
+    if (!SpeechRecognition) {
+      setIsSpeechSupported(false);
+      return;
+    }
+
+    const recognition = new SpeechRecognition();
+    recognition.continuous = true;
+    recognition.interimResults = true;
+    recognition.lang = 'en-US';
+
+    recognition.onstart = () => {
+      setIsRecording(true);
+      setVoiceError('');
+    };
+
+    recognition.onresult = (event) => {
+      let finalText = '';
+      let interimText = '';
+
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        const transcript = event.results[i][0].transcript;
+
+        if (event.results[i].isFinal) {
+          finalText += transcript + ' ';
+        } else {
+          interimText += transcript;
+        }
+      }
+
+      if (finalText) {
+        setUserAnswers((prev) => {
+          const updated = [...prev];
+          updated[currentIndex] =
+            `${updated[currentIndex] || ''} ${finalText}`.trim();
+          return updated;
+        });
+      }
+
+      setInterimTranscript(interimText);
+    };
+
+    recognition.onerror = (event) => {
+      console.error('Speech recognition error:', event.error);
+
+      if (event.error === 'not-allowed') {
+        setVoiceError(
+          'Microphone permission was denied. Please allow microphone access.'
+        );
+      } else if (event.error === 'no-speech') {
+        setVoiceError('No speech detected. Please try speaking again.');
+      } else {
+        setVoiceError('Voice recognition failed. Please try again.');
+      }
+
+      setIsRecording(false);
+    };
+
+    recognition.onend = () => {
+      setIsRecording(false);
+      setInterimTranscript('');
+    };
+
+    window.__interviewRecognition = recognition;
+
+    return () => {
+      recognition.stop();
+      delete window.__interviewRecognition;
+    };
+  }, [currentIndex]);
 
   const progressPercent = Math.round(
     ((currentIndex + 1) / totalQuestions) * 100
@@ -107,7 +187,30 @@ export default function InterviewSession() {
   };
 
   const toggleRecording = () => {
-    setIsRecording((prev) => !prev);
+    const recognition = window.__interviewRecognition;
+
+    if (!recognition) {
+      setVoiceError(
+        'Voice recognition is not supported in this browser.'
+      );
+      return;
+    }
+
+    if (isRecording) {
+      recognition.stop();
+      setIsRecording(false);
+      setInterimTranscript('');
+      return;
+    }
+
+    try {
+      setVoiceError('');
+      setInterimTranscript('');
+      recognition.start();
+    } catch (error) {
+      console.error(error);
+      setVoiceError('Could not start microphone. Please try again.');
+    }
   };
 
   // Evaluates the answer for `index` (if not already evaluated) and
@@ -133,7 +236,11 @@ export default function InterviewSession() {
   };
 
   const handleNext = async () => {
+    if (window.__interviewRecognition) {
+      window.__interviewRecognition.stop();
+    }
     setIsRecording(false);
+    setInterimTranscript('');
     setError('');
 
     if (currentIndex >= totalQuestions - 1) return;
@@ -146,7 +253,6 @@ export default function InterviewSession() {
       await ensureEvaluated(currentIndex);
 
       // Generate the next question only if we haven't fetched it yet
-      // (keeps Previous/Next free of re-generating questions).
       if (!sessionQuestions[currentIndex + 1]) {
         const data = await generateInterviewQuestion({
           role: config.role,
@@ -175,7 +281,11 @@ export default function InterviewSession() {
   };
 
   const handlePrevious = () => {
+    if (window.__interviewRecognition) {
+      window.__interviewRecognition.stop();
+    }
     setIsRecording(false);
+    setInterimTranscript('');
 
     if (currentIndex > 0) {
       setCurrentIndex((prev) => prev - 1);
@@ -183,7 +293,11 @@ export default function InterviewSession() {
   };
 
   const handleOpenFinishModal = () => {
+    if (window.__interviewRecognition) {
+      window.__interviewRecognition.stop();
+    }
     setIsRecording(false);
+    setInterimTranscript('');
     setShowFinishModal(true);
   };
 
@@ -197,14 +311,37 @@ export default function InterviewSession() {
     setError('');
 
     try {
-      // Make sure the final question's answer is evaluated too.
-      const finalEvaluations = await ensureEvaluated(currentIndex);
+      if (window.__interviewRecognition) {
+        window.__interviewRecognition.stop();
+      }
 
-      const evaluationPayload = finalEvaluations.map((evaluation, index) => ({
-        question: sessionQuestions[index],
-        answer: userAnswers[index] || '',
-        evaluation,
-      }));
+      setIsRecording(false);
+
+      let finalEvaluations = [...evaluations];
+
+      for (let i = 0; i < totalQuestions; i++) {
+        if (!finalEvaluations[i]) {
+          const data = await evaluateInterviewAnswer({
+            role: config.role,
+            experienceLevel: config.experienceLevel,
+            interviewType: config.interviewType,
+            question: sessionQuestions[i],
+            answer: userAnswers[i] || '',
+          });
+
+          finalEvaluations[i] = data.evaluation;
+        }
+      }
+
+      setEvaluations(finalEvaluations);
+
+      const evaluationPayload = finalEvaluations.map(
+        (evaluation, index) => ({
+          question: sessionQuestions[index],
+          answer: userAnswers[index] || '',
+          evaluation,
+        })
+      );
 
       const { feedback } = await generateFinalInterviewFeedback({
         role: config.role,
@@ -253,7 +390,6 @@ export default function InterviewSession() {
 
   return (
     <div className="min-h-[calc(100vh-80px)] py-8 px-4 max-w-4xl mx-auto space-y-6">
-
       <div className="glass-card p-5 space-y-4 bg-white">
         <div className="flex items-center justify-between">
           <div>
@@ -287,9 +423,7 @@ export default function InterviewSession() {
       </div>
 
       <div className="p-4 rounded-2xl bg-slate-900 text-white">
-        <h3 className="text-sm font-bold">
-          AI Senior Evaluator
-        </h3>
+        <h3 className="text-sm font-bold">AI Senior Evaluator</h3>
 
         <p className="text-xs text-slate-400">
           {isRecording
@@ -297,6 +431,12 @@ export default function InterviewSession() {
             : 'Speech recognition active & monitoring'}
         </p>
       </div>
+
+      {voiceError && (
+        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
+          🎙️ {voiceError}
+        </div>
+      )}
 
       {error && (
         <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
@@ -322,9 +462,30 @@ export default function InterviewSession() {
           </div>
 
           {isRecording && (
-            <div className="p-4 rounded-xl bg-red-50 border border-red-200">
-              🔴 Recording... {formatTimer(recordingSeconds)}
-            </div>
+            <motion.div
+              initial={{ opacity: 0, scale: 0.98 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="p-5 rounded-2xl bg-red-50 border border-red-200"
+            >
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <span className="relative flex h-3 w-3">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
+                    <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500" />
+                  </span>
+
+                  <span className="font-bold text-red-700">Listening...</span>
+                </div>
+
+                <span className="font-mono text-red-700">
+                  {formatTimer(recordingSeconds)}
+                </span>
+              </div>
+
+              <div className="text-sm text-slate-700 min-h-[24px]">
+                {interimTranscript || 'Start speaking...'}
+              </div>
+            </motion.div>
           )}
 
           <textarea
@@ -336,7 +497,6 @@ export default function InterviewSession() {
           />
 
           <div className="flex flex-col sm:flex-row gap-3 justify-between">
-
             <button
               onClick={handlePrevious}
               disabled={currentIndex === 0 || isAdvancing}
@@ -347,10 +507,14 @@ export default function InterviewSession() {
 
             <button
               onClick={toggleRecording}
-              disabled={isAdvancing || isSubmitting}
-              className="bg-slate-100 px-5 py-2 rounded-xl font-bold disabled:opacity-40"
+              disabled={isAdvancing || isSubmitting || !isSpeechSupported}
+              className={`px-5 py-3 rounded-xl font-bold transition-all ${
+                isRecording
+                  ? 'bg-red-500 text-white shadow-lg shadow-red-200'
+                  : 'bg-slate-100 text-slate-900 hover:bg-slate-200'
+              } disabled:opacity-40`}
             >
-              🎙 {isRecording ? 'Stop Recording' : 'Record Voice Answer'}
+              {isRecording ? <>🔴 Stop Recording</> : <>🎙️ Record Voice Answer</>}
             </button>
 
             {currentIndex < totalQuestions - 1 ? (
@@ -381,15 +545,12 @@ export default function InterviewSession() {
       {showFinishModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <div className="bg-white rounded-2xl p-8 max-w-md w-full text-center space-y-5">
-
-            <h3 className="text-xl font-bold">
-              Finish Interview?
-            </h3>
+            <h3 className="text-xl font-bold">Finish Interview?</h3>
 
             <p className="text-sm text-slate-600">
-              You answered {answeredCount} of {totalQuestions} questions.
-              The AI will now evaluate your answers and generate a full
-              report — this can take a few seconds.
+              You answered {answeredCount} of {totalQuestions} questions. The
+              AI will now evaluate your answers and generate a full report —
+              this can take a few seconds.
             </p>
 
             <div className="flex gap-3">
@@ -412,7 +573,6 @@ export default function InterviewSession() {
           </div>
         </div>
       )}
-
     </div>
   );
 }
