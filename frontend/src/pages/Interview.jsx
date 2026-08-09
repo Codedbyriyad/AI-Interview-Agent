@@ -1,778 +1,557 @@
-import { useState } from "react";
-import {
-  generateInterviewQuestion,
-  evaluateInterviewAnswer,
-  generateFinalInterviewFeedback,
-  saveInterview,
-} from "../services/interviewService";
+import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { motion, AnimatePresence } from "framer-motion";
+
+import { generateInterviewQuestion } from "../services/interviewService";
 
 const roles = [
-  "Frontend Developer",
-  "Backend Developer",
-  "Full Stack Developer",
-  "React Developer",
-  "Python Developer",
-  "AI Engineer",
-  "Machine Learning Engineer",
-  "Data Scientist",
-  "DevOps Engineer",
-  "Software Engineer",
+  {
+    title: "Frontend Developer",
+    desc: "React, JavaScript, CSS, Web Performance",
+  },
+  {
+    title: "Backend Developer",
+    desc: "Node.js, Python, APIs, Databases",
+  },
+  {
+    title: "Full-Stack Engineer",
+    desc: "Frontend, Backend & System Integration",
+  },
+  {
+    title: "AI / Machine Learning Engineer",
+    desc: "Python, ML, Deep Learning & LLMs",
+  },
+  {
+    title: "DevOps / SRE",
+    desc: "Cloud, CI/CD, Docker & Infrastructure",
+  },
+  {
+    title: "Other (Custom)",
+    desc: "Create your own interview role",
+  },
 ];
 
 const experienceLevels = [
-  "Beginner",
-  "Junior",
-  "Intermediate",
-  "Senior",
+  {
+    value: "Entry Level",
+    title: "Entry Level / Junior",
+    desc: "0–2 years • Fundamentals & practical basics",
+  },
+  {
+    value: "Mid Level",
+    title: "Mid Level",
+    desc: "2–5 years • Applied concepts & architecture",
+  },
+  {
+    value: "Senior Level",
+    title: "Senior / Lead",
+    desc: "5+ years • Architecture, optimization & leadership",
+  },
 ];
 
-const interviewTypes = [
-  "Technical",
-  "Behavioral",
-  "Mixed",
+const focusAreas = [
+  {
+    value: "Technical Deep Dive",
+    title: "Technical Deep Dive",
+    desc: "Core concepts, syntax, architecture and implementation",
+  },
+  {
+    value: "Problem Solving & DSA",
+    title: "Problem Solving & DSA",
+    desc: "Algorithms, data structures and logical thinking",
+  },
+  {
+    value: "System Architecture",
+    title: "System Architecture",
+    desc: "Scalability, APIs, databases and system design",
+  },
+  {
+    value: "Behavioral & Soft Skills",
+    title: "Behavioral & Soft Skills",
+    desc: "STAR method, teamwork, leadership and communication",
+  },
 ];
 
-function Interview() {
+const lengths = [
+  {
+    value: 5,
+    title: "Quick Practice",
+    duration: "5 Questions",
+    desc: "Fast interview practice",
+  },
+  {
+    value: 10,
+    title: "Standard Interview",
+    duration: "10 Questions",
+    desc: "Balanced complete interview",
+  },
+  {
+    value: 15,
+    title: "Deep Practice",
+    duration: "15 Questions",
+    desc: "Detailed adaptive interview",
+  },
+];
+
+const modes = [
+  {
+    value: "Technical",
+    icon: "💻",
+    title: "Technical",
+    desc: "Technical concepts & problem solving",
+  },
+  {
+    value: "Behavioral",
+    icon: "🗣️",
+    title: "Behavioral",
+    desc: "Experience & situational questions",
+  },
+  {
+    value: "Mixed",
+    icon: "⚡",
+    title: "Mixed",
+    desc: "Technical + behavioral",
+  },
+];
+
+export default function Interview() {
+  const navigate = useNavigate();
+
   const [step, setStep] = useState(1);
-
-  const [selectedRole, setSelectedRole] = useState("");
-  const [selectedExperience, setSelectedExperience] = useState("");
-  const [selectedInterviewType, setSelectedInterviewType] = useState("");
-
-  const [question, setQuestion] = useState("");
-  const [answer, setAnswer] = useState("");
-
-  const [evaluation, setEvaluation] = useState(null);
-
-  const [questionNumber, setQuestionNumber] = useState(1);
-  const [totalQuestions] = useState(5);
-
-  const [evaluations, setEvaluations] = useState([]);
-
   const [loading, setLoading] = useState(false);
-  const [evaluating, setEvaluating] = useState(false);
-
   const [error, setError] = useState("");
 
-  // ----------------------------------------
-  // STEP 1 → STEP 2 → STEP 3
-  // ----------------------------------------
+  const [formData, setFormData] = useState({
+    role: "Frontend Developer",
+    customRole: "",
+    experience: "Entry Level",
+    focusArea: "Technical Deep Dive",
+    length: 10,
+    mode: "Technical",
+  });
 
-  const handleContinue = () => {
-    if (step < 3) {
-      setStep(step + 1);
+  const updateForm = (key, value) => {
+    setFormData((prev) => ({
+      ...prev,
+      [key]: value,
+    }));
+
+    setError("");
+  };
+
+  const validateStep = () => {
+    if (step === 1) {
+      if (
+        formData.role === "Other (Custom)" &&
+        !formData.customRole.trim()
+      ) {
+        setError("Please enter your custom job role.");
+        return false;
+      }
+    }
+
+    return true;
+  };
+
+  const handleNext = () => {
+    if (!validateStep()) return;
+
+    if (step < 4) {
+      setStep((prev) => prev + 1);
     }
   };
 
-  // ----------------------------------------
-  // START INTERVIEW
-  // ----------------------------------------
+  const handleBack = () => {
+    setError("");
+
+    if (step > 1) {
+      setStep((prev) => prev - 1);
+    }
+  };
 
   const handleStartInterview = async () => {
+    if (!validateStep()) return;
+
     setLoading(true);
     setError("");
 
+    const finalRole =
+      formData.role === "Other (Custom)"
+        ? formData.customRole.trim()
+        : formData.role;
+
+    // The focus area is folded into the interview type so the AI
+    // still tailors questions to it, since the backend only stores
+    // a single free-text interview_type field.
+    const interviewType =
+      formData.mode === "Behavioral"
+        ? formData.mode
+        : `${formData.mode} (${formData.focusArea})`;
+
     try {
       const data = await generateInterviewQuestion({
-        role: selectedRole,
-        experienceLevel: selectedExperience,
-        interviewType: selectedInterviewType,
+        role: finalRole,
+        experienceLevel: formData.experience,
+        interviewType,
       });
 
-      setQuestion(data.question);
-
-      setQuestionNumber(1);
-      setAnswer("");
-      setEvaluations([]);
-      setEvaluation(null);
-
-      setStep(4);
+      navigate("/interview/session", {
+        state: {
+          config: {
+            role: finalRole,
+            experienceLevel: formData.experience,
+            interviewType,
+            questionCount: formData.length,
+          },
+          firstQuestion: data.question,
+        },
+      });
     } catch (err) {
-      console.error("Interview Error:", err);
+      console.error(err);
 
       const message =
         err.response?.data?.detail ||
-        err.response?.data?.message ||
         err.message ||
-        "Unable to generate interview question.";
+        "Failed to create interview session.";
 
-      setError(`Error: ${message}`);
+      setError(message);
     } finally {
       setLoading(false);
     }
   };
 
-  // ----------------------------------------
-  // SUBMIT ANSWER
-  // ----------------------------------------
-
-  const handleSubmitAnswer = async () => {
-    if (!answer.trim()) {
-      setError("Please write your answer before submitting.");
-      return;
-    }
-
-    setEvaluating(true);
-    setError("");
-
-    try {
-      // ----------------------------------------
-      // 1. Evaluate current answer
-      // ----------------------------------------
-
-      const data = await evaluateInterviewAnswer({
-        role: selectedRole,
-        experienceLevel: selectedExperience,
-        interviewType: selectedInterviewType,
-        question,
-        answer,
-      });
-
-      const currentEvaluation = data.evaluation;
-
-      // ----------------------------------------
-      // 2. Save current evaluation
-      // ----------------------------------------
-
-      const updatedEvaluations = [
-        ...evaluations,
-        {
-          question,
-          answer,
-          evaluation: currentEvaluation,
-        },
-      ];
-
-      setEvaluations(updatedEvaluations);
-
-      // ----------------------------------------
-      // 3. Generate next question
-      // ----------------------------------------
-
-      if (questionNumber < totalQuestions) {
-        const nextQuestion = await generateInterviewQuestion({
-          role: selectedRole,
-          experienceLevel: selectedExperience,
-          interviewType: selectedInterviewType,
-        });
-
-        setQuestion(nextQuestion.question);
-
-        setQuestionNumber((previous) => previous + 1);
-
-        setAnswer("");
-
-      } else {
-
-        // ----------------------------------------
-        // 4. Generate FINAL interview report & Save to DB
-        // ----------------------------------------
-
-        const finalResult = await generateFinalInterviewFeedback({
-          role: selectedRole,
-          experienceLevel: selectedExperience,
-          interviewType: selectedInterviewType,
-
-          // IMPORTANT:
-          // This contains ALL 5 question evaluations,
-          // including the final question.
-          evaluations: updatedEvaluations,
-        });
-
-        const finalFeedback = finalResult.feedback;
-
-        // Save complete interview to database
-        await saveInterview({
-          role: selectedRole,
-          experience_level: selectedExperience,
-          interview_type: selectedInterviewType,
-
-          overall_score: finalFeedback.overall_score,
-          technical_accuracy: finalFeedback.technical_accuracy,
-          communication: finalFeedback.communication,
-          relevance: finalFeedback.relevance,
-          problem_solving: finalFeedback.problem_solving,
-
-          strengths: finalFeedback.strengths,
-          improvements: finalFeedback.improvements,
-
-          recommendation: finalFeedback.recommendation,
-          final_summary: finalFeedback.final_summary,
-        });
-
-        setEvaluation(finalFeedback);
-
-        setStep(5);
-      }
-
-    } catch (err) {
-      console.error("Evaluation Error:", err);
-
-      const message =
-        err.response?.data?.detail ||
-        err.response?.data?.message ||
-        err.message ||
-        "Unable to evaluate your answer.";
-
-      setError(`Error: ${message}`);
-
-    } finally {
-      setEvaluating(false);
-    }
-  };
-
-  // ----------------------------------------
-  // START NEW INTERVIEW
-  // ----------------------------------------
-
-  const handleRestartInterview = () => {
-    setStep(1);
-
-    setSelectedRole("");
-    setSelectedExperience("");
-    setSelectedInterviewType("");
-
-    setQuestion("");
-    setAnswer("");
-
-    setEvaluation(null);
-
-    setQuestionNumber(1);
-    setEvaluations([]);
-
-    setError("");
-  };
-
   return (
-    <div className="min-h-screen bg-gray-50 px-6 py-16">
+    <div className="min-h-[calc(100vh-80px)] px-4 py-10">
+      <div className="max-w-3xl mx-auto">
 
-      <div className="mx-auto max-w-5xl">
-
-        {/* ========================================= */}
         {/* HEADER */}
-        {/* ========================================= */}
+        <div className="text-center mb-8">
+          <span className="inline-flex px-3 py-1 rounded-full bg-blue-50 border border-blue-100 text-blue-600 text-xs font-bold uppercase tracking-wider">
+            Interview Configuration
+          </span>
 
-        <h1 className="text-center text-5xl font-black">
+          <h1 className="mt-3 text-3xl sm:text-4xl font-extrabold text-slate-900">
+            Setup Your AI Interview Session
+          </h1>
 
-          {step === 4
-            ? "AI Interview"
-            : step === 5
-              ? "Interview Feedback"
-              : "Interview Setup"}
+          <p className="mt-2 text-sm text-slate-500">
+            Configure your role, experience, focus and interview length.
+          </p>
+        </div>
 
-        </h1>
+        {/* PROGRESS */}
+        <div className="relative max-w-md mx-auto mb-8">
+          <div className="absolute top-1/2 left-5 right-5 h-1 bg-slate-200 -translate-y-1/2" />
 
-        <p className="mt-4 text-center text-gray-600">
-
-          {step === 1 &&
-            "Step 1 of 3 — Choose your target role"}
-
-          {step === 2 &&
-            "Step 2 of 3 — Select your experience level"}
-
-          {step === 3 &&
-            "Step 3 of 3 — Choose interview type"}
-
-          {step === 4 &&
-            `Question ${questionNumber} of ${totalQuestions}`}
-
-          {step === 5 &&
-            "AI-powered evaluation of your complete interview"}
-
-        </p>
-
-
-        {/* ========================================= */}
-        {/* STEP 1 — ROLE */}
-        {/* ========================================= */}
-
-        {step === 1 && (
-
-          <div className="mt-12 grid gap-6 md:grid-cols-2">
-
-            {roles.map((role) => (
-
-              <button
-                key={role}
-                onClick={() => setSelectedRole(role)}
-                className={`rounded-2xl border p-6 text-left transition ${
-                  selectedRole === role
-                    ? "border-blue-600 bg-blue-50 shadow-md"
-                    : "border-gray-200 bg-white hover:border-blue-300 hover:shadow-lg"
+          <div className="relative flex justify-between">
+            {[1, 2, 3, 4].map((number) => (
+              <div
+                key={number}
+                className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold border-4 border-white transition-all ${
+                  step >= number
+                    ? "bg-blue-600 text-white shadow-lg"
+                    : "bg-slate-200 text-slate-500"
                 }`}
               >
-
-                <h3 className="text-xl font-bold">
-                  {role}
-                </h3>
-
-                <p className="mt-2 text-gray-500">
-                  Practice AI interviews for this role.
-                </p>
-
-              </button>
-
+                {number}
+              </div>
             ))}
-
           </div>
+        </div>
 
-        )}
-
-
-        {/* ========================================= */}
-        {/* STEP 2 — EXPERIENCE */}
-        {/* ========================================= */}
-
-        {step === 2 && (
-
-          <div className="mx-auto mt-12 grid max-w-2xl gap-5">
-
-            {experienceLevels.map((level) => (
-
-              <button
-                key={level}
-                onClick={() => setSelectedExperience(level)}
-                className={`rounded-2xl border p-6 text-left transition ${
-                  selectedExperience === level
-                    ? "border-blue-600 bg-blue-50 shadow-md"
-                    : "border-gray-200 bg-white hover:border-blue-300 hover:shadow-lg"
-                }`}
-              >
-
-                <h3 className="text-xl font-bold">
-                  {level}
-                </h3>
-
-                <p className="mt-2 text-gray-500">
-                  Questions will be adjusted to your experience level.
-                </p>
-
-              </button>
-
-            ))}
-
-          </div>
-
-        )}
-
-
-        {/* ========================================= */}
-        {/* STEP 3 — INTERVIEW TYPE */}
-        {/* ========================================= */}
-
-        {step === 3 && (
-
-          <div className="mx-auto mt-12 grid max-w-2xl gap-5">
-
-            {interviewTypes.map((type) => (
-
-              <button
-                key={type}
-                onClick={() => setSelectedInterviewType(type)}
-                className={`rounded-2xl border p-6 text-left transition ${
-                  selectedInterviewType === type
-                    ? "border-blue-600 bg-blue-50 shadow-md"
-                    : "border-gray-200 bg-white hover:border-blue-300 hover:shadow-lg"
-                }`}
-              >
-
-                <h3 className="text-xl font-bold">
-                  {type} Interview
-                </h3>
-
-                <p className="mt-2 text-gray-500">
-                  Practice with {type.toLowerCase()} interview questions.
-                </p>
-
-              </button>
-
-            ))}
-
-          </div>
-
-        )}
-
-
-        {/* ========================================= */}
-        {/* STEP 4 — AI INTERVIEW */}
-        {/* ========================================= */}
-
-        {step === 4 && (
-
-          <div className="mx-auto mt-12 max-w-3xl">
-
-            <div className="rounded-3xl border border-gray-200 bg-white p-8 shadow-xl">
-
-              {/* Interview Information */}
-
-              <div className="mb-6 flex flex-wrap gap-3">
-
-                <span className="rounded-full bg-blue-100 px-4 py-2 text-sm font-semibold text-blue-700">
-                  {selectedRole}
-                </span>
-
-                <span className="rounded-full bg-gray-100 px-4 py-2 text-sm font-semibold text-gray-700">
-                  {selectedExperience}
-                </span>
-
-                <span className="rounded-full bg-purple-100 px-4 py-2 text-sm font-semibold text-purple-700">
-                  {selectedInterviewType}
-                </span>
-
-              </div>
-
-
-              {/* Progress */}
-
-              <div className="mb-8">
-
-                <div className="mb-2 flex justify-between text-sm font-semibold text-gray-500">
-
-                  <span>
-                    Question {questionNumber} of {totalQuestions}
-                  </span>
-
-                  <span>
-                    {Math.round(
-                      (questionNumber / totalQuestions) * 100
-                    )}
-                    %
-                  </span>
-
-                </div>
-
-                <div className="h-2 overflow-hidden rounded-full bg-gray-200">
-
-                  <div
-                    className="h-full rounded-full bg-blue-600 transition-all duration-500"
-                    style={{
-                      width: `${
-                        (questionNumber / totalQuestions) * 100
-                      }%`,
-                    }}
-                  />
-
-                </div>
-
-              </div>
-
-
-              {/* Question */}
-
-              <p className="text-sm font-semibold uppercase tracking-wide text-gray-400">
-                Question {questionNumber}
-              </p>
-
-              <h2 className="mt-4 text-2xl font-bold leading-relaxed">
-                {question}
-              </h2>
-
-
-              {/* Answer */}
-
-              <textarea
-                value={answer}
-                onChange={(e) => setAnswer(e.target.value)}
-                placeholder="Type your answer here..."
-                className="mt-8 min-h-48 w-full resize-none rounded-2xl border border-gray-200 p-5 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-              />
-
-
-              {/* Submit */}
-
-              <button
-                onClick={handleSubmitAnswer}
-                disabled={!answer.trim() || evaluating}
-                className="mt-6 w-full rounded-xl bg-blue-600 py-4 font-bold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-gray-300"
-              >
-
-                {evaluating
-                  ? "AI is evaluating..."
-                  : questionNumber < totalQuestions
-                    ? "Submit & Continue"
-                    : "Submit & Finish"}
-
-              </button>
-
-            </div>
-
-          </div>
-
-        )}
-
-
-        {/* ========================================= */}
-        {/* STEP 5 — FINAL FEEDBACK */}
-        {/* ========================================= */}
-
-        {step === 5 && evaluation && (
-
-          <div className="mx-auto mt-12 max-w-4xl">
-
-            {/* Overall Score */}
-
-            <div className="rounded-3xl border border-gray-200 bg-white p-8 text-center shadow-xl">
-
-              <p className="text-sm font-semibold uppercase tracking-wide text-gray-400">
-                Overall Score
-              </p>
-
-              <div className="mt-4 text-7xl font-black text-blue-600">
-                {evaluation.overall_score}
-              </div>
-
-              <p className="mt-2 text-gray-500">
-                out of 100
-              </p>
-
-            </div>
-
-
-            {/* Score Cards */}
-
-            <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-
-              <div className="rounded-2xl border bg-white p-6 text-center shadow-sm">
-
-                <p className="text-sm text-gray-500">
-                  Technical Accuracy
-                </p>
-
-                <p className="mt-2 text-3xl font-black text-blue-600">
-                  {evaluation.technical_accuracy}
-                </p>
-
-              </div>
-
-
-              <div className="rounded-2xl border bg-white p-6 text-center shadow-sm">
-
-                <p className="text-sm text-gray-500">
-                  Communication
-                </p>
-
-                <p className="mt-2 text-3xl font-black text-blue-600">
-                  {evaluation.communication}
-                </p>
-
-              </div>
-
-
-              <div className="rounded-2xl border bg-white p-6 text-center shadow-sm">
-
-                <p className="text-sm text-gray-500">
-                  Relevance
-                </p>
-
-                <p className="mt-2 text-3xl font-black text-blue-600">
-                  {evaluation.relevance}
-                </p>
-
-              </div>
-
-
-              <div className="rounded-2xl border bg-white p-6 text-center shadow-sm">
-
-                <p className="text-sm text-gray-500">
-                  Problem Solving
-                </p>
-
-                <p className="mt-2 text-3xl font-black text-blue-600">
-                  {evaluation.problem_solving}
-                </p>
-
-              </div>
-
-            </div>
-
-
-            {/* Strengths & Improvements */}
-
-            <div className="mt-6 grid gap-6 md:grid-cols-2">
-
-              {/* Strengths */}
-
-              <div className="rounded-3xl border border-green-200 bg-green-50 p-7">
-
-                <h3 className="text-xl font-bold text-green-800">
-                  ✅ Strengths
-                </h3>
-
-                <ul className="mt-4 space-y-3">
-
-                  {evaluation.strengths?.map(
-                    (strength, index) => (
-
-                      <li
-                        key={index}
-                        className="rounded-xl bg-white p-4 text-gray-700"
-                      >
-                        {strength}
-                      </li>
-
-                    )
-                  )}
-
-                </ul>
-
-              </div>
-
-
-              {/* Improvements */}
-
-              <div className="rounded-3xl border border-orange-200 bg-orange-50 p-7">
-
-                <h3 className="text-xl font-bold text-orange-800">
-                  ⚠️ Areas to Improve
-                </h3>
-
-                <ul className="mt-4 space-y-3">
-
-                  {evaluation.improvements?.map(
-                    (improvement, index) => (
-
-                      <li
-                        key={index}
-                        className="rounded-xl bg-white p-4 text-gray-700"
-                      >
-                        {improvement}
-                      </li>
-
-                    )
-                  )}
-
-                </ul>
-
-              </div>
-
-            </div>
-
-
-            {/* Final Summary */}
-
-            {evaluation.final_summary && (
-
-              <div className="mt-6 rounded-3xl border border-blue-200 bg-blue-50 p-7">
-
-                <h3 className="text-xl font-bold text-blue-800">
-                  📝 Final Interview Summary
-                </h3>
-
-                <p className="mt-4 leading-relaxed text-gray-700">
-                  {evaluation.final_summary}
-                </p>
-
-              </div>
-
-            )}
-
-
-            {/* Recommendation */}
-
-            {evaluation.recommendation && (
-
-              <div className="mt-6 rounded-3xl border border-purple-200 bg-purple-50 p-7">
-
-                <h3 className="text-xl font-bold text-purple-800">
-                  🤖 AI Recommendation
-                </h3>
-
-                <p className="mt-4 leading-relaxed text-gray-700">
-                  {evaluation.recommendation}
-                </p>
-
-              </div>
-
-            )}
-
-
-            {/* Restart */}
-
-            <button
-              onClick={handleRestartInterview}
-              className="mt-8 w-full rounded-xl bg-blue-600 py-4 font-bold text-white transition hover:bg-blue-700"
-            >
-              Start New Interview
-            </button>
-
-          </div>
-
-        )}
-
-
-        {/* ========================================= */}
         {/* ERROR */}
-        {/* ========================================= */}
-
         {error && (
-
-          <div className="mx-auto mt-6 max-w-2xl rounded-xl border border-red-200 bg-red-50 p-4 text-center text-red-600">
+          <div className="mb-5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
             {error}
           </div>
-
         )}
 
+        {/* CARD */}
+        <div className="bg-white border border-slate-200 rounded-2xl shadow-lg p-6 sm:p-8">
 
-        {/* ========================================= */}
-        {/* NAVIGATION */}
-        {/* ========================================= */}
+          <AnimatePresence mode="wait">
 
-        {step < 4 && (
-
-          <div className="mx-auto mt-10 flex max-w-2xl gap-4">
-
-            {step > 1 && (
-
-              <button
-                onClick={() => setStep(step - 1)}
-                className="w-1/3 rounded-xl border border-gray-300 bg-white py-4 font-bold transition hover:bg-gray-100"
+            {/* STEP 1 */}
+            {step === 1 && (
+              <motion.div
+                key="step1"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                className="space-y-6"
               >
-                Back
-              </button>
+                <div>
+                  <h2 className="text-xl font-bold text-slate-900">
+                    1. Select Target Job Role
+                  </h2>
 
+                  <p className="text-sm text-slate-500 mt-1">
+                    Choose the role you want to practice for.
+                  </p>
+                </div>
+
+                <div className="grid sm:grid-cols-2 gap-3">
+                  {roles.map((role) => (
+                    <button
+                      key={role.title}
+                      type="button"
+                      onClick={() =>
+                        updateForm("role", role.title)
+                      }
+                      className={`text-left p-4 rounded-xl border transition-all ${
+                        formData.role === role.title
+                          ? "border-blue-600 bg-blue-50 shadow-sm"
+                          : "border-slate-200 hover:border-blue-300 hover:bg-slate-50"
+                      }`}
+                    >
+                      <div className="font-bold text-sm text-slate-900">
+                        {role.title}
+                      </div>
+
+                      <div className="text-xs text-slate-500 mt-1">
+                        {role.desc}
+                      </div>
+                    </button>
+                  ))}
+                </div>
+
+                {formData.role === "Other (Custom)" && (
+                  <input
+                    value={formData.customRole}
+                    onChange={(e) =>
+                      updateForm("customRole", e.target.value)
+                    }
+                    placeholder="e.g. AI Engineer"
+                    className="w-full px-4 py-3 rounded-xl border border-slate-200 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                  />
+                )}
+              </motion.div>
             )}
 
-
-            {step < 3 && (
-
-              <button
-                onClick={handleContinue}
-                disabled={
-                  (step === 1 && !selectedRole) ||
-                  (step === 2 && !selectedExperience)
-                }
-                className="flex-1 rounded-xl bg-blue-600 py-4 font-bold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-gray-300"
+            {/* STEP 2 */}
+            {step === 2 && (
+              <motion.div
+                key="step2"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                className="space-y-6"
               >
-                Continue
-              </button>
+                <div>
+                  <h2 className="text-xl font-bold text-slate-900">
+                    2. Select Experience Level
+                  </h2>
 
+                  <p className="text-sm text-slate-500 mt-1">
+                    AI will adjust question difficulty automatically.
+                  </p>
+                </div>
+
+                <div className="space-y-3">
+                  {experienceLevels.map((level) => (
+                    <button
+                      key={level.value}
+                      type="button"
+                      onClick={() =>
+                        updateForm("experience", level.value)
+                      }
+                      className={`w-full text-left p-5 rounded-xl border transition-all ${
+                        formData.experience === level.value
+                          ? "border-blue-600 bg-blue-50"
+                          : "border-slate-200 hover:border-blue-300 hover:bg-slate-50"
+                      }`}
+                    >
+                      <div className="font-bold text-slate-900">
+                        {level.title}
+                      </div>
+
+                      <div className="text-xs text-slate-500 mt-1">
+                        {level.desc}
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </motion.div>
             )}
 
-
+            {/* STEP 3 */}
             {step === 3 && (
-
-              <button
-                onClick={handleStartInterview}
-                disabled={!selectedInterviewType || loading}
-                className="flex-1 rounded-xl bg-blue-600 py-4 font-bold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-gray-300"
+              <motion.div
+                key="step3"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                className="space-y-6"
               >
+                <div>
+                  <h2 className="text-xl font-bold text-slate-900">
+                    3. Select Interview Focus
+                  </h2>
 
-                {loading
-                  ? "AI is preparing your question..."
-                  : "Start Interview"}
+                  <p className="text-sm text-slate-500 mt-1">
+                    Choose what the AI interviewer should focus on.
+                  </p>
+                </div>
 
-              </button>
+                <div className="space-y-3">
+                  {focusAreas.map((area) => (
+                    <button
+                      key={area.value}
+                      type="button"
+                      onClick={() =>
+                        updateForm("focusArea", area.value)
+                      }
+                      className={`w-full text-left p-5 rounded-xl border transition-all ${
+                        formData.focusArea === area.value
+                          ? "border-blue-600 bg-blue-50"
+                          : "border-slate-200 hover:border-blue-300 hover:bg-slate-50"
+                      }`}
+                    >
+                      <div className="font-bold text-slate-900">
+                        {area.title}
+                      </div>
 
+                      <div className="text-xs text-slate-500 mt-1">
+                        {area.desc}
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </motion.div>
             )}
 
+            {/* STEP 4 */}
+            {step === 4 && (
+              <motion.div
+                key="step4"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                className="space-y-7"
+              >
+                <div>
+                  <h2 className="text-xl font-bold text-slate-900">
+                    4. Interview Format
+                  </h2>
+
+                  <p className="text-sm text-slate-500 mt-1">
+                    Decide how long and what type of interview you want.
+                  </p>
+                </div>
+
+                {/* LENGTH */}
+                <div>
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-3">
+                    Interview Length
+                  </h3>
+
+                  <div className="grid sm:grid-cols-3 gap-3">
+                    {lengths.map((length) => (
+                      <button
+                        key={length.value}
+                        type="button"
+                        onClick={() =>
+                          updateForm("length", length.value)
+                        }
+                        className={`text-left p-4 rounded-xl border transition-all ${
+                          formData.length === length.value
+                            ? "border-blue-600 bg-blue-50"
+                            : "border-slate-200 hover:border-blue-300"
+                        }`}
+                      >
+                        <div className="font-bold text-sm">
+                          {length.title}
+                        </div>
+
+                        <div className="text-xs text-blue-600 font-semibold mt-1">
+                          {length.duration}
+                        </div>
+
+                        <div className="text-[11px] text-slate-500 mt-1">
+                          {length.desc}
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* MODE */}
+                <div>
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-3">
+                    Interview Mode
+                  </h3>
+
+                  <div className="grid sm:grid-cols-3 gap-3">
+                    {modes.map((mode) => (
+                      <button
+                        key={mode.value}
+                        type="button"
+                        onClick={() =>
+                          updateForm("mode", mode.value)
+                        }
+                        className={`p-4 rounded-xl border text-center transition-all ${
+                          formData.mode === mode.value
+                            ? "border-blue-600 bg-blue-50"
+                            : "border-slate-200 hover:border-blue-300"
+                        }`}
+                      >
+                        <div className="text-2xl">
+                          {mode.icon}
+                        </div>
+
+                        <div className="font-bold text-sm mt-2">
+                          {mode.title}
+                        </div>
+
+                        <div className="text-[11px] text-slate-500 mt-1">
+                          {mode.desc}
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* CONTROLS */}
+          <div className="flex items-center justify-between border-t border-slate-100 mt-8 pt-6">
+
+            {step > 1 ? (
+              <button
+                type="button"
+                onClick={handleBack}
+                className="px-5 py-2.5 rounded-lg text-sm font-semibold text-slate-600 hover:bg-slate-100"
+              >
+                ← Back
+              </button>
+            ) : (
+              <div />
+            )}
+
+            {step < 4 ? (
+              <button
+                type="button"
+                onClick={handleNext}
+                className="px-6 py-2.5 rounded-lg bg-blue-600 text-white text-sm font-bold hover:bg-blue-700 transition"
+              >
+                Continue →
+              </button>
+            ) : (
+              <button
+                type="button"
+                disabled={loading}
+                onClick={handleStartInterview}
+                className="px-6 py-3 rounded-lg bg-emerald-600 text-white text-sm font-bold hover:bg-emerald-700 disabled:opacity-60 disabled:cursor-not-allowed transition"
+              >
+                {loading
+                  ? "Starting AI Interview..."
+                  : `🚀 Start Interview (${formData.length} Questions)`}
+              </button>
+            )}
           </div>
-
-        )}
-
+        </div>
       </div>
-
     </div>
   );
 }
-
-export default Interview;

@@ -1,21 +1,34 @@
-import { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
+import { motion } from "framer-motion";
 import { getInterviews } from "../services/interviewService";
 
-function Dashboard() {
+export default function Dashboard() {
   const [interviews, setInterviews] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
+  // =========================================================
+  // LOAD REAL INTERVIEW DATA
+  // =========================================================
+
   useEffect(() => {
-    const loadInterviews = async () => {
+    const loadDashboard = async () => {
       try {
         setLoading(true);
         setError("");
 
         const data = await getInterviews();
 
-        setInterviews(data);
+        const sortedData = Array.isArray(data)
+          ? [...data].sort(
+              (a, b) =>
+                new Date(b.created_at) -
+                new Date(a.created_at)
+            )
+          : [];
+
+        setInterviews(sortedData);
       } catch (err) {
         console.error("Dashboard Error:", err);
 
@@ -31,713 +44,685 @@ function Dashboard() {
       }
     };
 
-    loadInterviews();
+    loadDashboard();
   }, []);
 
-  // ----------------------------------------
+  // =========================================================
+  // CALCULATED STATISTICS
+  // =========================================================
+
+  const totalInterviews = interviews.length;
+
+  const scores = interviews.map((interview) =>
+    Number(interview.overall_score || 0)
+  );
+
+  const averageScore =
+    scores.length > 0
+      ? Math.round(
+          scores.reduce((sum, score) => sum + score, 0) /
+            scores.length
+        )
+      : 0;
+
+  const bestScore =
+    scores.length > 0
+      ? Math.max(...scores)
+      : 0;
+
+  const latestInterview = interviews[0] || null;
+
+  const latestScore = latestInterview
+    ? Number(latestInterview.overall_score || 0)
+    : 0;
+
+  // =========================================================
+  // PERFORMANCE TREND
+  // =========================================================
+
+  const chartInterviews = useMemo(() => {
+    return [...interviews]
+      .slice(0, 6)
+      .reverse();
+  }, [interviews]);
+
+  const trend =
+    chartInterviews.length >= 2
+      ? Number(
+          chartInterviews[chartInterviews.length - 1]
+            .overall_score || 0
+        ) -
+        Number(chartInterviews[0].overall_score || 0)
+      : 0;
+
+  // =========================================================
+  // READINESS BREAKDOWN
+  // =========================================================
+
+  const readiness = useMemo(() => {
+    if (!interviews.length) {
+      return {
+        technical: 0,
+        communication: 0,
+        relevance: 0,
+        problemSolving: 0,
+      };
+    }
+
+    const average = (field) => {
+      const values = interviews.map((interview) =>
+        Number(interview[field] || 0)
+      );
+
+      return Math.round(
+        values.reduce((sum, value) => sum + value, 0) /
+          values.length
+      );
+    };
+
+    return {
+      technical: average("technical_accuracy"),
+      communication: average("communication"),
+      relevance: average("relevance"),
+      problemSolving: average("problem_solving"),
+    };
+  }, [interviews]);
+
+  // =========================================================
+  // RECOMMENDED AREA
+  // =========================================================
+
+  const recommendation = useMemo(() => {
+    const areas = [
+      {
+        name: "Technical Accuracy",
+        score: readiness.technical,
+        description:
+          "Strengthen technical concepts and explain your decisions with more depth.",
+      },
+      {
+        name: "Communication",
+        score: readiness.communication,
+        description:
+          "Practice giving structured, concise and confident interview answers.",
+      },
+      {
+        name: "Relevance",
+        score: readiness.relevance,
+        description:
+          "Focus on answering exactly what the interviewer asks with concrete examples.",
+      },
+      {
+        name: "Problem Solving",
+        score: readiness.problemSolving,
+        description:
+          "Practice explaining your reasoning, trade-offs and step-by-step approach.",
+      },
+    ];
+
+    return areas.reduce(
+      (weakest, current) =>
+        current.score < weakest.score
+          ? current
+          : weakest,
+      areas[0]
+    );
+  }, [readiness]);
+
+  // =========================================================
   // HELPERS
-  // ----------------------------------------
-
-  const getScoreColor = (score) => {
-    if (score >= 80) return "text-green-600";
-    if (score >= 60) return "text-yellow-600";
-    return "text-red-600";
-  };
-
-  const getScoreBg = (score) => {
-    if (score >= 80) return "bg-green-50 border-green-200";
-    if (score >= 60) return "bg-yellow-50 border-yellow-200";
-    return "bg-red-50 border-red-200";
-  };
+  // =========================================================
 
   const formatDate = (date) => {
     if (!date) return "Date unavailable";
 
-    return new Date(date).toLocaleDateString();
+    return new Date(date).toLocaleDateString(
+      undefined,
+      {
+        month: "short",
+        day: "2-digit",
+        year: "numeric",
+      }
+    );
   };
 
-  // ----------------------------------------
-  // LOADING
-  // ----------------------------------------
+  const getScoreColor = (score) => {
+    if (score >= 80) return "text-emerald-600";
+    if (score >= 60) return "text-amber-600";
+    return "text-red-600";
+  };
+
+  const getProgressColor = (score) => {
+    if (score >= 80) return "bg-emerald-500";
+    if (score >= 60) return "bg-amber-500";
+    return "bg-red-500";
+  };
+
+  // =========================================================
+  // LOADING STATE
+  // =========================================================
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 px-6 py-16">
-        <div className="mx-auto max-w-7xl">
-
+      <div className="min-h-[calc(100vh-80px)] bg-slate-50 px-4 py-10">
+        <div className="mx-auto max-w-7xl space-y-8">
           <div className="animate-pulse">
-            <div className="mx-auto h-12 max-w-md rounded-xl bg-gray-200" />
-
-            <div className="mx-auto mt-4 h-5 max-w-xl rounded bg-gray-200" />
-
-            <div className="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-              {[1, 2, 3, 4].map((item) => (
-                <div
-                  key={item}
-                  className="h-36 rounded-3xl bg-white shadow-sm"
-                />
-              ))}
-            </div>
-
-            <div className="mt-8 h-96 rounded-3xl bg-white shadow-sm" />
+            <div className="h-10 w-72 rounded-lg bg-slate-200" />
+            <div className="mt-3 h-5 w-96 max-w-full rounded bg-slate-200" />
           </div>
 
+          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+            {[1, 2, 3, 4].map((item) => (
+              <div
+                key={item}
+                className="h-32 rounded-2xl bg-white shadow-sm animate-pulse"
+              />
+            ))}
+          </div>
+
+          <div className="h-80 rounded-2xl bg-white shadow-sm animate-pulse" />
+
+          <div className="grid gap-8 lg:grid-cols-3">
+            <div className="h-72 rounded-2xl bg-white shadow-sm animate-pulse lg:col-span-2" />
+            <div className="h-72 rounded-2xl bg-white shadow-sm animate-pulse" />
+          </div>
         </div>
       </div>
     );
   }
 
-  // ----------------------------------------
-  // ERROR
-  // ----------------------------------------
+  // =========================================================
+  // ERROR STATE
+  // =========================================================
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gray-50 px-6 py-16">
-        <div className="mx-auto max-w-3xl">
+      <div className="min-h-[calc(100vh-80px)] bg-slate-50 px-4 py-16">
+        <div className="mx-auto max-w-2xl rounded-3xl border border-red-200 bg-white p-10 text-center shadow-sm">
+          <div className="text-5xl">⚠️</div>
 
-          <div className="rounded-3xl border border-red-200 bg-red-50 p-8 text-center">
+          <h1 className="mt-5 text-2xl font-black text-slate-900">
+            Unable to load dashboard
+          </h1>
 
-            <div className="text-5xl">⚠️</div>
+          <p className="mt-3 text-sm text-slate-500">
+            {error}
+          </p>
 
-            <h2 className="mt-4 text-2xl font-bold text-red-800">
-              Unable to load dashboard
-            </h2>
-
-            <p className="mt-2 text-red-600">
-              {error}
-            </p>
-
-          </div>
-
+          <button
+            onClick={() => window.location.reload()}
+            className="mt-6 rounded-xl bg-blue-600 px-6 py-3 text-sm font-bold text-white transition hover:bg-blue-700"
+          >
+            Try Again
+          </button>
         </div>
       </div>
     );
   }
 
-  // ----------------------------------------
+  // =========================================================
   // EMPTY STATE
-  // ----------------------------------------
+  // =========================================================
 
   if (interviews.length === 0) {
     return (
-      <div className="min-h-screen bg-gray-50 px-6 py-16">
-        <div className="mx-auto max-w-5xl">
+      <div className="min-h-[calc(100vh-80px)] bg-slate-50 px-4 py-12">
+        <div className="mx-auto max-w-4xl">
+          <div className="rounded-3xl border border-slate-200 bg-white p-12 text-center shadow-sm">
+            <div className="text-6xl">🎯</div>
 
-          <div className="text-center">
-
-            <p className="text-sm font-bold uppercase tracking-widest text-blue-600">
-              AI Interview Coach
-            </p>
-
-            <h1 className="mt-3 text-5xl font-black tracking-tight">
-              Performance Dashboard
+            <h1 className="mt-6 text-3xl font-black text-slate-900">
+              Your Interview Dashboard
             </h1>
 
-            <p className="mx-auto mt-4 max-w-2xl text-lg text-gray-600">
-              Track your interview performance, identify weaknesses,
-              and improve with AI-powered feedback.
-            </p>
-
-          </div>
-
-          <div className="mt-16 rounded-3xl border border-gray-200 bg-white p-12 text-center shadow-sm">
-
-            <div className="text-7xl">
-              🎯
-            </div>
-
-            <h2 className="mt-6 text-3xl font-black">
-              Your interview journey starts here
-            </h2>
-
-            <p className="mx-auto mt-3 max-w-lg text-gray-500">
-              Complete your first AI-powered interview and your
-              performance analytics will appear here.
+            <p className="mx-auto mt-3 max-w-lg text-sm leading-6 text-slate-500">
+              Complete your first AI interview to start
+              tracking your performance, strengths and
+              improvement areas.
             </p>
 
             <Link
               to="/interview"
-              className="mt-8 inline-block rounded-xl bg-blue-600 px-8 py-4 font-bold text-white transition hover:bg-blue-700"
+              className="mt-7 inline-flex rounded-xl bg-blue-600 px-7 py-3 text-sm font-bold text-white shadow-lg shadow-blue-500/20 transition hover:bg-blue-700"
             >
-              Start New Interview
+              Start Your First Interview →
             </Link>
-
           </div>
-
         </div>
       </div>
     );
   }
 
-  // ----------------------------------------
-  // CALCULATIONS
-  // ----------------------------------------
-
-  const totalInterviews = interviews.length;
-
-  const averageScore = Math.round(
-    interviews.reduce(
-      (sum, interview) =>
-        sum + Number(interview.overall_score || 0),
-      0
-    ) / totalInterviews
-  );
-
-  const bestScore = Math.max(
-    ...interviews.map((interview) =>
-      Number(interview.overall_score || 0)
-    )
-  );
-
-  const latestInterview = interviews[0];
-
-  const latestScore = Number(
-    latestInterview.overall_score || 0
-  );
-
-  // ----------------------------------------
+  // =========================================================
   // MAIN DASHBOARD
-  // ----------------------------------------
+  // =========================================================
 
   return (
-    <div className="min-h-screen bg-gray-50 px-6 py-12">
+    <div className="min-h-[calc(100vh-80px)] bg-slate-50 px-4 py-8 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-7xl space-y-8">
 
-      <div className="mx-auto max-w-7xl">
+        {/* =================================================
+            HEADER
+        ================================================= */}
 
-        {/* ========================================= */}
-        {/* HEADER */}
-        {/* ========================================= */}
-
-        <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
-
-          <div>
-
-            <p className="text-sm font-bold uppercase tracking-widest text-blue-600">
-              AI Interview Coach
-            </p>
-
-            <h1 className="mt-2 text-4xl font-black tracking-tight md:text-5xl">
-              Performance Dashboard
-            </h1>
-
-            <p className="mt-4 max-w-2xl text-lg text-gray-600">
-              Track your interview performance, identify weaknesses,
-              and improve with AI-powered feedback.
-            </p>
-
-          </div>
-
-          <Link
-            to="/interview"
-            className="inline-flex items-center justify-center rounded-xl bg-blue-600 px-6 py-4 font-bold text-white shadow-lg transition hover:-translate-y-0.5 hover:bg-blue-700"
-          >
-            🎯 Start New Interview
-          </Link>
-
-        </div>
-
-        {/* ========================================= */}
-        {/* STATS */}
-        {/* ========================================= */}
-
-        <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-
-          {/* Total */}
-
-          <div className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm">
-
-            <div className="flex items-center justify-between">
-
-              <div>
-
-                <p className="text-sm font-semibold text-gray-500">
-                  Total Interviews
-                </p>
-
-                <p className="mt-2 text-4xl font-black text-blue-600">
-                  {totalInterviews}
-                </p>
-
-                <p className="mt-2 text-sm text-gray-500">
-                  Practice sessions completed
-                </p>
-
+        <motion.div
+          initial={{ opacity: 0, y: 15 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="rounded-3xl border border-slate-200 bg-gradient-to-r from-white via-blue-50/40 to-white p-6 shadow-sm sm:p-8"
+        >
+          <div className="flex flex-col justify-between gap-5 sm:flex-row sm:items-center">
+            <div>
+              <div className="flex items-center gap-2">
+                <h1 className="text-2xl font-black tracking-tight text-slate-900 sm:text-3xl">
+                  Good evening, Riyad 👋
+                </h1>
               </div>
 
-              <div className="rounded-2xl bg-blue-50 p-4 text-2xl">
-                🎯
-              </div>
-
+              <p className="mt-2 text-sm font-medium text-slate-500">
+                Keep practicing — your performance is
+                tracked automatically.
+              </p>
             </div>
 
+            <Link
+              to="/interview"
+              className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-6 py-3 text-sm font-bold text-white shadow-lg shadow-blue-500/20 transition hover:-translate-y-0.5 hover:bg-blue-700"
+            >
+              Start New Interview
+              <span>→</span>
+            </Link>
           </div>
+        </motion.div>
 
-          {/* Average */}
+        {/* =================================================
+            STAT CARDS
+        ================================================= */}
 
-          <div className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm">
+        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
 
-            <div className="flex items-center justify-between">
-
-              <div>
-
-                <p className="text-sm font-semibold text-gray-500">
-                  Average Score
-                </p>
-
-                <p className="mt-2 text-4xl font-black text-purple-600">
-                  {averageScore}
-                </p>
-
-                <p className="mt-2 text-sm text-gray-500">
-                  Overall performance
-                </p>
-
-              </div>
-
-              <div className="rounded-2xl bg-purple-50 p-4 text-2xl">
-                📊
-              </div>
-
-            </div>
-
-          </div>
-
-          {/* Best */}
-
-          <div className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm">
-
-            <div className="flex items-center justify-between">
-
-              <div>
-
-                <p className="text-sm font-semibold text-gray-500">
-                  Best Score
-                </p>
-
-                <p className="mt-2 text-4xl font-black text-green-600">
-                  {bestScore}
-                </p>
-
-                <p className="mt-2 text-sm text-gray-500">
-                  Personal best
-                </p>
-
-              </div>
-
-              <div className="rounded-2xl bg-green-50 p-4 text-2xl">
-                🏆
-              </div>
-
-            </div>
-
-          </div>
-
-          {/* Latest */}
-
-          <div className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm">
-
-            <div className="flex items-center justify-between">
-
-              <div>
-
-                <p className="text-sm font-semibold text-gray-500">
-                  Latest Score
-                </p>
-
-                <p
-                  className={`mt-2 text-4xl font-black ${getScoreColor(
-                    latestScore
-                  )}`}
+          {[
+            {
+              label: "Total Interviews",
+              value: totalInterviews,
+              description: "Practice sessions completed",
+              icon: "🎯",
+              color: "text-blue-600",
+              bg: "bg-blue-50",
+            },
+            {
+              label: "Average Score",
+              value: `${averageScore}%`,
+              description: "Overall performance",
+              icon: "📊",
+              color: "text-emerald-600",
+              bg: "bg-emerald-50",
+            },
+            {
+              label: "Best Score",
+              value: `${bestScore}%`,
+              description: "Personal best",
+              icon: "🏆",
+              color: "text-purple-600",
+              bg: "bg-purple-50",
+            },
+            {
+              label: "Latest Score",
+              value: `${latestScore}%`,
+              description: latestInterview
+                ? "Most recent interview"
+                : "No interviews yet",
+              icon: "✨",
+              color: getScoreColor(latestScore),
+              bg:
+                latestScore >= 80
+                  ? "bg-emerald-50"
+                  : latestScore >= 60
+                  ? "bg-amber-50"
+                  : "bg-red-50",
+            },
+          ].map((stat, index) => (
+            <motion.div
+              key={stat.label}
+              initial={{ opacity: 0, y: 15 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{
+                duration: 0.35,
+                delay: index * 0.08,
+              }}
+              className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:-translate-y-1 hover:shadow-md"
+            >
+              <div className="flex items-center justify-between">
+                <div
+                  className={`flex h-10 w-10 items-center justify-center rounded-xl ${stat.bg}`}
                 >
-                  {latestScore}
-                </p>
-
-                <p className="mt-2 text-sm text-gray-500">
-                  Keep practicing
-                </p>
-
+                  <span>{stat.icon}</span>
+                </div>
               </div>
 
-              <div className="rounded-2xl bg-orange-50 p-4 text-2xl">
-                🚀
-              </div>
+              <p className="mt-5 text-xs font-bold uppercase tracking-wider text-slate-400">
+                {stat.label}
+              </p>
 
-            </div>
+              <p className={`mt-1 text-3xl font-black ${stat.color}`}>
+                {stat.value}
+              </p>
 
-          </div>
-
+              <p className="mt-1 text-xs text-slate-500">
+                {stat.description}
+              </p>
+            </motion.div>
+          ))}
         </div>
 
-        {/* ========================================= */}
-        {/* LATEST INTERVIEW + PERFORMANCE */}
-        {/* ========================================= */}
+        {/* =================================================
+            PERFORMANCE CHART
+        ================================================= */}
 
-        <div className="mt-8 grid gap-6 lg:grid-cols-3">
+        <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-7">
 
-          {/* Latest Interview */}
+          <div className="flex flex-col justify-between gap-3 border-b border-slate-100 pb-5 sm:flex-row sm:items-center">
+            <div>
+              <h2 className="text-lg font-black text-slate-900">
+                Performance Overview
+              </h2>
 
-          <div className="rounded-3xl border border-gray-200 bg-white p-7 shadow-sm lg:col-span-2">
+              <p className="mt-1 text-xs text-slate-500">
+                Score progress across your recent interview sessions
+              </p>
+            </div>
 
-            <div className="flex items-center justify-between">
+            <div
+              className={`rounded-full px-3 py-1.5 text-xs font-bold ${
+                trend > 0
+                  ? "bg-emerald-50 text-emerald-700"
+                  : trend < 0
+                  ? "bg-red-50 text-red-700"
+                  : "bg-slate-100 text-slate-600"
+              }`}
+            >
+              {trend > 0
+                ? `📈 +${trend}% growth`
+                : trend < 0
+                ? `📉 ${trend}% change`
+                : "→ Stable performance"}
+            </div>
+          </div>
 
+          <div className="mt-6">
+
+            <div className="flex h-56 items-end gap-2 sm:gap-4">
+              {chartInterviews.map((interview, index) => {
+                const score = Number(
+                  interview.overall_score || 0
+                );
+
+                return (
+                  <div
+                    key={interview.id}
+                    className="group flex h-full flex-1 flex-col items-center justify-end"
+                  >
+                    <div className="relative flex h-full w-full items-end justify-center">
+                      <div
+                        className="w-full max-w-12 rounded-t-xl bg-gradient-to-t from-blue-600 to-cyan-400 transition-all duration-500 group-hover:from-blue-700 group-hover:to-cyan-500"
+                        style={{
+                          height: `${Math.max(score, 8)}%`,
+                        }}
+                      >
+                        <div className="relative -top-7 text-center text-[10px] font-black text-slate-700">
+                          {score}%
+                        </div>
+                      </div>
+                    </div>
+
+                    <span className="mt-3 text-[10px] font-semibold text-slate-400">
+                      #{interviews.length - index}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="mt-4 border-t border-slate-100 pt-3 text-center text-[10px] font-semibold text-slate-400">
+              Recent interview sessions
+            </div>
+          </div>
+        </div>
+
+        {/* =================================================
+            LOWER SECTION
+        ================================================= */}
+
+        <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
+
+          {/* =================================================
+              RECENT SESSIONS
+          ================================================= */}
+
+          <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm lg:col-span-2">
+
+            <div className="flex items-center justify-between border-b border-slate-100 pb-4">
               <div>
-
-                <p className="text-sm font-bold uppercase tracking-wider text-gray-400">
-                  Latest Interview
-                </p>
-
-                <h2 className="mt-2 text-2xl font-black">
-                  {latestInterview.role}
+                <h2 className="text-lg font-black text-slate-900">
+                  Recent Interview Sessions
                 </h2>
 
+                <p className="mt-1 text-xs text-slate-500">
+                  Your latest AI interview results
+                </p>
               </div>
 
               <Link
-                to={`/history/${latestInterview.id}`}
-                className="font-semibold text-blue-600 hover:text-blue-700"
+                to="/history"
+                className="text-xs font-bold text-blue-600 transition hover:text-blue-700"
               >
-                View Details →
+                View History →
               </Link>
-
             </div>
 
-            <div className="mt-5 flex flex-wrap gap-2">
+            <div className="mt-5 space-y-3">
 
-              <span className="rounded-full bg-blue-100 px-4 py-2 text-sm font-semibold text-blue-700">
-                {latestInterview.experience_level}
-              </span>
+              {interviews.slice(0, 5).map((interview) => {
+                const score = Number(
+                  interview.overall_score || 0
+                );
 
-              <span className="rounded-full bg-purple-100 px-4 py-2 text-sm font-semibold text-purple-700">
-                {latestInterview.interview_type}
-              </span>
+                return (
+                  <motion.div
+                    key={interview.id}
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    className="flex flex-col justify-between gap-4 rounded-2xl border border-slate-200 bg-slate-50/70 p-4 transition hover:border-blue-200 hover:bg-white hover:shadow-sm sm:flex-row sm:items-center"
+                  >
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <h3 className="text-sm font-black text-slate-900">
+                          {interview.role}
+                        </h3>
 
+                        <span className="rounded-full bg-blue-50 px-2.5 py-1 text-[10px] font-bold text-blue-600">
+                          {interview.interview_type}
+                        </span>
+                      </div>
+
+                      <p className="mt-1 text-xs text-slate-400">
+                        {interview.experience_level}
+                        {" • "}
+                        {formatDate(interview.created_at)}
+                      </p>
+                    </div>
+
+                    <div className="flex items-center justify-between gap-5 sm:justify-end">
+
+                      <div className="text-right">
+                        <p className="text-[9px] font-bold uppercase tracking-wider text-slate-400">
+                          Score
+                        </p>
+
+                        <p
+                          className={`text-xl font-black ${getScoreColor(
+                            score
+                          )}`}
+                        >
+                          {score}%
+                        </p>
+                      </div>
+
+                      <Link
+                        to={`/history/${interview.id}`}
+                        className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-600 transition hover:border-blue-300 hover:text-blue-600"
+                      >
+                        Details
+                      </Link>
+                    </div>
+                  </motion.div>
+                );
+              })}
             </div>
+          </div>
 
-            {/* Latest Score */}
+          {/* =================================================
+              READINESS
+          ================================================= */}
 
-            <div className="mt-8 flex items-center gap-6">
+          <div className="space-y-6">
 
-              <div
-                className={`flex h-28 w-28 items-center justify-center rounded-full border-8 ${getScoreBg(
-                  latestScore
-                )}`}
-              >
-                <span
-                  className={`text-4xl font-black ${getScoreColor(
-                    latestScore
-                  )}`}
-                >
-                  {latestScore}
-                </span>
-              </div>
+            <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
 
-              <div>
+              <h2 className="text-lg font-black text-slate-900">
+                Interview Readiness
+              </h2>
 
-                <p className="text-sm font-semibold text-gray-500">
-                  Interview Score
-                </p>
+              <p className="mt-1 text-xs text-slate-500">
+                Average performance across all completed interviews
+              </p>
 
-                <p className="mt-1 text-2xl font-black">
-                  {latestScore >= 80
-                    ? "Excellent performance"
-                    : latestScore >= 60
-                      ? "Good progress"
-                      : "Keep practicing"}
-                </p>
-
-                <p className="mt-1 text-sm text-gray-500">
-                  {formatDate(latestInterview.created_at)}
-                </p>
-
-              </div>
-
-            </div>
-
-            {/* Performance Breakdown */}
-
-            <div className="mt-8">
-
-              <h3 className="text-lg font-black">
-                Performance Breakdown
-              </h3>
-
-              <div className="mt-5 space-y-5">
+              <div className="mt-6 space-y-5">
 
                 {[
                   {
                     label: "Technical Accuracy",
-                    value: latestInterview.technical_accuracy,
+                    score: readiness.technical,
                   },
                   {
                     label: "Communication",
-                    value: latestInterview.communication,
+                    score: readiness.communication,
                   },
                   {
                     label: "Relevance",
-                    value: latestInterview.relevance,
+                    score: readiness.relevance,
                   },
                   {
                     label: "Problem Solving",
-                    value: latestInterview.problem_solving,
+                    score: readiness.problemSolving,
                   },
                 ].map((item) => (
-
                   <div key={item.label}>
-
-                    <div className="mb-2 flex justify-between">
-
-                      <span className="text-sm font-semibold text-gray-600">
+                    <div className="mb-1.5 flex justify-between text-xs font-bold">
+                      <span className="text-slate-700">
                         {item.label}
                       </span>
 
-                      <span className="text-sm font-bold">
-                        {item.value}
+                      <span
+                        className={getScoreColor(item.score)}
+                      >
+                        {item.score}%
                       </span>
-
                     </div>
 
-                    <div className="h-2 overflow-hidden rounded-full bg-gray-100">
-
-                      <div
-                        className="h-full rounded-full bg-blue-600 transition-all duration-700"
-                        style={{
-                          width: `${item.value}%`,
+                    <div className="h-2 overflow-hidden rounded-full bg-slate-100">
+                      <motion.div
+                        initial={{ width: 0 }}
+                        animate={{
+                          width: `${item.score}%`,
                         }}
+                        transition={{
+                          duration: 0.8,
+                        }}
+                        className={`h-full rounded-full ${getProgressColor(
+                          item.score
+                        )}`}
                       />
-
                     </div>
-
                   </div>
-
                 ))}
+              </div>
+            </div>
 
+            {/* =================================================
+                RECOMMENDATION
+            ================================================= */}
+
+            <div className="rounded-3xl border border-amber-200 bg-gradient-to-br from-amber-50 via-white to-orange-50 p-6 shadow-sm">
+
+              <div className="flex items-center gap-2">
+                <span className="text-lg">🎯</span>
+
+                <h3 className="text-sm font-black text-slate-900">
+                  Recommended Next Practice
+                </h3>
               </div>
 
-            </div>
-
-          </div>
-
-          {/* AI Assessment */}
-
-          <div className="rounded-3xl border border-blue-200 bg-blue-50 p-7">
-
-            <p className="text-sm font-bold uppercase tracking-wider text-blue-600">
-              AI Assessment
-            </p>
-
-            <h2 className="mt-3 text-2xl font-black text-gray-900">
-              {latestScore >= 80
-                ? "Interview Ready 🚀"
-                : latestScore >= 60
-                  ? "Getting There 💪"
-                  : "Keep Practicing 🤖"}
-            </h2>
-
-            <p className="mt-3 text-sm leading-relaxed text-gray-600">
-              Based on your latest interview performance, your
-              current interview readiness score is:
-            </p>
-
-            <div className="mt-6 rounded-2xl bg-white p-6 text-center shadow-sm">
-
-              <p
-                className={`text-6xl font-black ${getScoreColor(
-                  latestScore
-                )}`}
-              >
-                {latestScore}
+              <p className="mt-4 text-lg font-black text-slate-900">
+                {recommendation.name}
               </p>
 
-              <p className="mt-2 text-sm font-semibold text-gray-500">
-                Readiness Score
+              <p className="mt-1 text-xs leading-5 text-slate-600">
+                Your current weakest area is{" "}
+                <span className="font-bold text-amber-700">
+                  {recommendation.score}%
+                </span>
+                . Focus your next practice session here
+                to improve your overall readiness.
               </p>
-
-            </div>
-
-            <p className="mt-5 text-sm font-semibold text-gray-700">
-              {latestScore >= 80
-                ? "You're showing strong interview readiness. Keep sharpening your skills."
-                : "Keep practicing to improve your interview performance."}
-            </p>
-
-            <Link
-              to="/interview"
-              className="mt-6 block rounded-xl bg-blue-600 py-3 text-center font-bold text-white transition hover:bg-blue-700"
-            >
-              Practice Again
-            </Link>
-
-          </div>
-
-        </div>
-
-        {/* ========================================= */}
-        {/* AI COACH SUMMARY */}
-        {/* ========================================= */}
-
-        {latestInterview.final_summary && (
-
-          <div className="mt-8 rounded-3xl border border-purple-200 bg-purple-50 p-7">
-
-            <div className="flex items-center gap-3">
-
-              <div className="rounded-xl bg-white p-3 text-xl">
-                🤖
-              </div>
-
-              <div>
-
-                <p className="text-sm font-bold uppercase tracking-wider text-purple-600">
-                  AI Coach
-                </p>
-
-                <h2 className="text-2xl font-black text-gray-900">
-                  AI Coach Summary
-                </h2>
-
-              </div>
-
-            </div>
-
-            <p className="mt-5 max-w-5xl leading-relaxed text-gray-700">
-              {latestInterview.final_summary}
-            </p>
-
-          </div>
-
-        )}
-
-        {/* ========================================= */}
-        {/* RECENT ACTIVITY */}
-        {/* ========================================= */}
-
-        <div className="mt-8 rounded-3xl border border-gray-200 bg-white p-7 shadow-sm">
-
-          <div className="flex items-center justify-between">
-
-            <div>
-
-              <p className="text-sm font-bold uppercase tracking-wider text-gray-400">
-                Activity
-              </p>
-
-              <h2 className="mt-2 text-2xl font-black">
-                Recent Interviews
-              </h2>
-
-            </div>
-
-            <Link
-              to="/history"
-              className="font-semibold text-blue-600 hover:text-blue-700"
-            >
-              View All →
-            </Link>
-
-          </div>
-
-          <div className="mt-6 divide-y divide-gray-100">
-
-            {interviews.slice(0, 5).map((interview) => (
 
               <Link
-                key={interview.id}
-                to={`/history/${interview.id}`}
-                className="flex items-center justify-between gap-4 py-5 transition hover:bg-gray-50"
+                to="/interview"
+                className="mt-5 flex w-full items-center justify-center rounded-xl bg-amber-600 px-4 py-3 text-xs font-bold text-white shadow-lg shadow-amber-500/20 transition hover:bg-amber-700"
               >
-
-                <div>
-
-                  <h3 className="font-bold text-gray-900">
-                    {interview.role}
-                  </h3>
-
-                  <div className="mt-1 flex flex-wrap gap-2">
-
-                    <span className="text-sm text-gray-500">
-                      {interview.experience_level}
-                    </span>
-
-                    <span className="text-gray-300">
-                      •
-                    </span>
-
-                    <span className="text-sm text-gray-500">
-                      {interview.interview_type}
-                    </span>
-
-                  </div>
-
-                </div>
-
-                <div className="text-right">
-
-                  <p
-                    className={`text-2xl font-black ${getScoreColor(
-                      interview.overall_score
-                    )}`}
-                  >
-                    {interview.overall_score}
-                  </p>
-
-                  <p className="mt-1 text-xs text-gray-400">
-                    {formatDate(interview.created_at)}
-                  </p>
-
-                </div>
-
+                Practice This Area →
               </Link>
-
-            ))}
-
+            </div>
           </div>
-
         </div>
 
-        {/* ========================================= */}
-        {/* FINAL CTA */}
-        {/* ========================================= */}
+        {/* =================================================
+            BOTTOM CTA
+        ================================================= */}
 
-        <div className="mt-8 rounded-3xl bg-gray-900 p-8 text-center text-white md:p-12">
+        <div className="rounded-3xl border border-blue-200 bg-gradient-to-r from-blue-600 to-indigo-600 p-7 text-white shadow-xl shadow-blue-500/10 sm:p-8">
 
-          <div className="text-4xl">
-            🚀
+          <div className="flex flex-col justify-between gap-5 sm:flex-row sm:items-center">
+
+            <div>
+              <h2 className="text-xl font-black">
+                Ready for your next interview?
+              </h2>
+
+              <p className="mt-1 text-sm text-blue-100">
+                Practice again and let AI help you improve.
+              </p>
+            </div>
+
+            <div className="flex flex-wrap gap-3">
+              <Link
+                to="/interview"
+                className="rounded-xl bg-white px-5 py-2.5 text-xs font-black text-blue-600 transition hover:bg-blue-50"
+              >
+                Start Interview
+              </Link>
+
+              <Link
+                to="/history"
+                className="rounded-xl border border-white/30 bg-white/10 px-5 py-2.5 text-xs font-bold text-white transition hover:bg-white/20"
+              >
+                View History
+              </Link>
+            </div>
+
           </div>
-
-          <h2 className="mt-4 text-3xl font-black">
-            Ready for your next interview?
-          </h2>
-
-          <p className="mx-auto mt-3 max-w-xl text-gray-300">
-            Practice again and let AI analyze your answers,
-            identify your weaknesses, and help you improve.
-          </p>
-
-          <div className="mt-7 flex flex-col justify-center gap-3 sm:flex-row">
-
-            <Link
-              to="/interview"
-              className="rounded-xl bg-white px-7 py-3 font-bold text-gray-900 transition hover:bg-gray-100"
-            >
-              Start Interview
-            </Link>
-
-            <Link
-              to="/history"
-              className="rounded-xl border border-gray-600 px-7 py-3 font-bold text-white transition hover:bg-gray-800"
-            >
-              View History
-            </Link>
-
-          </div>
-
         </div>
 
       </div>
-
     </div>
   );
 }
-
-export default Dashboard;

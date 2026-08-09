@@ -1,231 +1,155 @@
-import { useState } from "react";
-import { Link, NavLink } from "react-router-dom";
+import React, { useState, useEffect } from 'react';
+import { Link, useLocation } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
 
-import Container from "./Container";
-import Button from "../ui/Button";
+export default function Navbar() {
+  const [isScrolled, setIsScrolled] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const location = useLocation();
 
-function Navbar() {
-  const [mobileOpen, setMobileOpen] = useState(false);
+  // স্ক্রল করার সাথে সাথে ব্যাকগ্রাউন্ড শ্যাডো আপডেট হবে
+  useEffect(() => {
+    const handleScroll = () => {
+      setIsScrolled(window.scrollY > 20);
+    };
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
 
-  const closeMobileMenu = () => {
-    setMobileOpen(false);
-  };
+  // রুট অ্যাক্টিভ কিনা চেক করার ফাংশন
+  const isActive = (path) => location.pathname === path;
+
+  const navLinks = [
+    { name: 'Dashboard', path: '/dashboard' },
+    { name: 'History', path: '/history' },
+  ];
 
   return (
-    <header className="sticky top-0 z-50 border-b border-gray-200/70 bg-white/90 backdrop-blur-xl">
-      <Container>
-        <nav className="flex h-20 items-center justify-between">
-
-          {/* ============================= */}
-          {/* LOGO */}
-          {/* ============================= */}
-
-          <Link
-            to="/"
-            onClick={closeMobileMenu}
-            className="group flex items-center gap-3"
-          >
-            {/* Logo Icon */}
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-blue-600 to-indigo-600 text-lg font-black text-white shadow-lg shadow-blue-500/20 transition duration-300 group-hover:scale-105">
+    <header
+      className={`sticky top-0 z-50 transition-all duration-300 ${
+        isScrolled
+          ? 'bg-white/80 backdrop-blur-md border-b border-slate-200/80 shadow-sm py-3'
+          : 'bg-white/50 backdrop-blur-sm border-b border-slate-100 py-4'
+      }`}
+    >
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex items-center justify-between">
+          
+          {/* ১. লোগো (Brand Logo) */}
+          <Link to="/" className="flex items-center gap-2 group">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center text-white font-bold text-xl shadow-md shadow-blue-500/20 group-hover:scale-105 transition-transform duration-200">
               AI
             </div>
-
-            {/* Brand */}
-            <div className="hidden sm:block">
-              <p className="text-lg font-black tracking-tight text-gray-900">
-                AI Interview
-              </p>
-
-              <p className="-mt-1 text-xs font-medium text-gray-500">
-                Agent
-              </p>
+            <div className="flex flex-col">
+              <span className="font-extrabold text-lg leading-tight text-navy-900 group-hover:text-blue-600 transition-colors">
+                Interview<span className="text-blue-600">Agent</span>
+              </span>
+              <span className="text-[10px] tracking-wider uppercase font-semibold text-slate-400">
+                Prep & Analytics
+              </span>
             </div>
           </Link>
 
-          {/* ============================= */}
-          {/* DESKTOP NAVIGATION */}
-          {/* ============================= */}
-
-          <div className="hidden items-center gap-2 lg:flex">
-
-            <a
-              href="/#features"
-              className="rounded-lg px-4 py-2.5 text-sm font-semibold text-gray-600 transition hover:bg-gray-50 hover:text-blue-600"
+          {/* ২. ডেস্কটপ নেভিগেশন লিংকস */}
+          <nav className="hidden md:flex items-center gap-1 bg-slate-100/80 p-1.5 rounded-full border border-slate-200/60">
+            <Link
+              to="/"
+              className={`px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 ${
+                isActive('/')
+                  ? 'bg-white text-blue-600 shadow-sm'
+                  : 'text-slate-600 hover:text-navy-900 hover:bg-white/50'
+              }`}
             >
-              Features
-            </a>
+              Home
+            </Link>
+            {navLinks.map((link) => (
+              <Link
+                key={link.path}
+                to={link.path}
+                className={`px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 ${
+                  isActive(link.path)
+                    ? 'bg-white text-blue-600 shadow-sm'
+                    : 'text-slate-600 hover:text-navy-900 hover:bg-white/50'
+                }`}
+              >
+                {link.name}
+              </Link>
+            ))}
+          </nav>
 
-            <a
-              href="/#how-it-works"
-              className="rounded-lg px-4 py-2.5 text-sm font-semibold text-gray-600 transition hover:bg-gray-50 hover:text-blue-600"
-            >
-              How it Works
-            </a>
-
-            <a
-              href="/#faq"
-              className="rounded-lg px-4 py-2.5 text-sm font-semibold text-gray-600 transition hover:bg-gray-50 hover:text-blue-600"
-            >
-              FAQ
-            </a>
-
-            <NavLink
-              to="/dashboard"
-              className={({ isActive }) =>
-                `rounded-lg px-4 py-2.5 text-sm font-semibold transition ${
-                  isActive
-                    ? "bg-blue-50 text-blue-600"
-                    : "text-gray-600 hover:bg-gray-50 hover:text-blue-600"
-                }`
-              }
-            >
-              Dashboard
-            </NavLink>
-
-            <NavLink
-              to="/history"
-              className={({ isActive }) =>
-                `rounded-lg px-4 py-2.5 text-sm font-semibold transition ${
-                  isActive
-                    ? "bg-blue-50 text-blue-600"
-                    : "text-gray-600 hover:bg-gray-50 hover:text-blue-600"
-                }`
-              }
-            >
-              History
-            </NavLink>
-          </div>
-
-          {/* ============================= */}
-          {/* DESKTOP CTA */}
-          {/* ============================= */}
-
-          <div className="hidden lg:block">
-            <Link to="/interview">
-              <Button>Start Interview</Button>
+          {/* ৩. প্রাইমারি CTA বাটন */}
+          <div className="hidden md:flex items-center gap-3">
+            <Link to="/interview" className="btn-primary text-sm py-2.5 px-5">
+              <span>Start Interview</span>
+              <svg className="w-4 h-4 ml-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
+              </svg>
             </Link>
           </div>
 
-          {/* ============================= */}
-          {/* MOBILE MENU BUTTON */}
-          {/* ============================= */}
-
+          {/* ৪. মোবাইল মেনু টগল বাটন */}
           <button
-            type="button"
-            onClick={() => setMobileOpen(!mobileOpen)}
-            className="flex h-10 w-10 items-center justify-center rounded-xl border border-gray-200 bg-white text-gray-700 transition hover:border-blue-300 hover:text-blue-600 lg:hidden"
-            aria-label="Toggle navigation menu"
-            aria-expanded={mobileOpen}
+            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+            className="md:hidden p-2 rounded-xl text-slate-600 hover:text-navy-900 hover:bg-slate-100 focus:outline-none"
+            aria-label="Toggle Menu"
           >
-            {mobileOpen ? (
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                className="h-5 w-5"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-                strokeWidth={2}
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M6 18L18 6M6 6l12 12"
-                />
-              </svg>
-            ) : (
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                className="h-5 w-5"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-                strokeWidth={2}
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M4 6h16M4 12h16M4 18h16"
-                />
-              </svg>
-            )}
+            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              {isMobileMenuOpen ? (
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              ) : (
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+              )}
+            </svg>
           </button>
-        </nav>
+        </div>
+      </div>
 
-        {/* ============================= */}
-        {/* MOBILE NAVIGATION */}
-        {/* ============================= */}
-
-        {mobileOpen && (
-          <div className="border-t border-gray-100 py-5 lg:hidden">
-
-            <div className="flex flex-col gap-2">
-
-              <a
-                href="/#features"
-                onClick={closeMobileMenu}
-                className="rounded-xl px-4 py-3 text-sm font-semibold text-gray-700 transition hover:bg-blue-50 hover:text-blue-600"
-              >
-                Features
-              </a>
-
-              <a
-                href="/#how-it-works"
-                onClick={closeMobileMenu}
-                className="rounded-xl px-4 py-3 text-sm font-semibold text-gray-700 transition hover:bg-blue-50 hover:text-blue-600"
-              >
-                How it Works
-              </a>
-
-              <a
-                href="/#faq"
-                onClick={closeMobileMenu}
-                className="rounded-xl px-4 py-3 text-sm font-semibold text-gray-700 transition hover:bg-blue-50 hover:text-blue-600"
-              >
-                FAQ
-              </a>
-
-              <NavLink
-                to="/dashboard"
-                onClick={closeMobileMenu}
-                className={({ isActive }) =>
-                  `rounded-xl px-4 py-3 text-sm font-semibold transition ${
-                    isActive
-                      ? "bg-blue-50 text-blue-600"
-                      : "text-gray-700 hover:bg-blue-50 hover:text-blue-600"
-                  }`
-                }
-              >
-                Dashboard
-              </NavLink>
-
-              <NavLink
-                to="/history"
-                onClick={closeMobileMenu}
-                className={({ isActive }) =>
-                  `rounded-xl px-4 py-3 text-sm font-semibold transition ${
-                    isActive
-                      ? "bg-blue-50 text-blue-600"
-                      : "text-gray-700 hover:bg-blue-50 hover:text-blue-600"
-                  }`
-                }
-              >
-                History
-              </NavLink>
-
+      {/* ৫. মোবাইল ড্রপডাউন মেনু (Animated Drawer) */}
+      <AnimatePresence>
+        {isMobileMenuOpen && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            className="md:hidden bg-white/95 backdrop-blur-xl border-b border-slate-200 overflow-hidden"
+          >
+            <div className="px-4 pt-3 pb-6 space-y-2">
               <Link
-                to="/interview"
-                onClick={closeMobileMenu}
-                className="mt-2"
+                to="/"
+                onClick={() => setIsMobileMenuOpen(false)}
+                className={`block px-4 py-2.5 rounded-xl text-base font-medium ${
+                  isActive('/') ? 'bg-blue-50 text-blue-600 font-semibold' : 'text-slate-700 hover:bg-slate-50'
+                }`}
               >
-                <Button>Start Interview</Button>
+                Home
               </Link>
-
+              {navLinks.map((link) => (
+                <Link
+                  key={link.path}
+                  to={link.path}
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className={`block px-4 py-2.5 rounded-xl text-base font-medium ${
+                    isActive(link.path)
+                      ? 'bg-blue-50 text-blue-600 font-semibold'
+                      : 'text-slate-700 hover:bg-slate-50'
+                  }`}
+                >
+                  {link.name}
+                </Link>
+              ))}
+              <div className="pt-2">
+                <Link
+                  to="/interview"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className="btn-primary w-full text-center py-3 text-sm"
+                >
+                  Start Interview
+                </Link>
+              </div>
             </div>
-          </div>
+          </motion.div>
         )}
-      </Container>
+      </AnimatePresence>
     </header>
   );
 }
-
-export default Navbar;

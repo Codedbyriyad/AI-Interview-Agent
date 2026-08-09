@@ -1,28 +1,30 @@
+# Environment variables
+.env
+*.env
+
+# Python cache
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Virtual environments
+venv/
+.venv/
+env/
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
 # Node
 node_modules/
+npm-debug.log*
+
+# Build
 dist/
-
-# Python
-__pycache__/
-*.pyc
-.venv/
-venv/
-
-# Environment
-.env
-.env.local
-
-# VS Code
-.vscode/
+build/
 
 # OS
 .DS_Store
 Thumbs.db
-
-# Logs
-*.log
-
-.env
-*.env
-__pycache__/
-venv/
